@@ -1,120 +1,125 @@
-import { Link, router } from 'expo-router'
-import { useState } from 'react'
-import { Alert, Pressable, Text, TextInput, View } from 'react-native'
-import { supabase } from './lib/supabase'
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { supabase } from "../lib/supabase";
 
 export default function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
 
-  const onLogin = async () => {
-    const e = email.trim().toLowerCase()
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
 
-    if (!e || !password) {
-      Alert.alert('Missing info', 'Enter your email and password.')
-      return
+  const onSubmit = async () => {
+    try {
+      if (busy) return;
+      setBusy(true);
+
+      const cleanEmail = email.trim().toLowerCase();
+      if (!cleanEmail) throw new Error("Enter an email.");
+      if (!password || password.length < 6) throw new Error("Password must be at least 6 characters.");
+
+      if (mode === "signin") {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
+        if (error) throw error;
+
+        // Gate handles /onboarding vs /dashboard
+        router.replace("/dashboard");
+        return;
+      }
+
+      // SIGN UP
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+      });
+
+      if (error) throw error;
+
+      // If email confirmations are ON, session can be null until they confirm email.
+      if (!data.session) {
+        Alert.alert(
+          "Check your email",
+          "Your account was created. Please confirm the email link, then come back and Sign in."
+        );
+        setMode("signin");
+        return;
+      }
+
+      // If confirmations are OFF (common in dev), they’ll be logged in immediately:
+      router.replace("/dashboard");
+    } catch (e: any) {
+      Alert.alert("Auth failed", e?.message ?? "Unknown error");
+    } finally {
+      setBusy(false);
     }
-
-    setLoading(true)
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: e,
-      password,
-    })
-    setLoading(false)
-
-    if (error) {
-      // Most common when you didn’t confirm email yet:
-      // "Email not confirmed"
-      Alert.alert('Login failed', error.message)
-      return
-    }
-
-    if (!data.session) {
-      Alert.alert(
-        'Not logged in yet',
-        'If this is a new account, confirm your email first, then try again.'
-      )
-      return
-    }
-
-    router.replace('/dashboard')
-  }
+  };
 
   return (
-    <View style={{ flex: 1, padding: 20, justifyContent: 'center' }}>
-      <Text style={{ fontSize: 34, fontWeight: '700', marginBottom: 18 }}>
-        Log in
+    <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: "center" }}>
+      <Text style={{ fontSize: 22, fontWeight: "900" }}>
+        {mode === "signin" ? "Sign in" : "Create account"}
       </Text>
 
-      <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
-        Email
-      </Text>
       <TextInput
         value={email}
         onChangeText={setEmail}
-        autoCapitalize="none"
+        placeholder="Email"
         keyboardType="email-address"
-        placeholder="you@example.com"
-        style={{
-          borderWidth: 1,
-          borderColor: '#ddd',
-          padding: 14,
-          borderRadius: 12,
-          marginBottom: 14,
-        }}
+        autoCapitalize="none"
+        style={{ borderWidth: 1, borderColor: "#ccc", padding: 12, borderRadius: 10 }}
       />
 
-      <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
-        Password
-      </Text>
       <TextInput
         value={password}
         onChangeText={setPassword}
+        placeholder="Password (6+ chars)"
         secureTextEntry
-        placeholder="••••••••"
-        style={{
-          borderWidth: 1,
-          borderColor: '#ddd',
-          padding: 14,
-          borderRadius: 12,
-          marginBottom: 18,
-        }}
+        style={{ borderWidth: 1, borderColor: "#ccc", padding: 12, borderRadius: 10 }}
       />
 
       <Pressable
-        onPress={onLogin}
-        disabled={loading}
+        onPress={onSubmit}
+        disabled={busy}
         style={{
-          backgroundColor: 'black',
-          paddingVertical: 16,
-          borderRadius: 14,
-          alignItems: 'center',
-          opacity: loading ? 0.6 : 1,
+          padding: 14,
+          borderRadius: 10,
+          alignItems: "center",
+          borderWidth: 1,
+          borderColor: "#111",
+          opacity: busy ? 0.6 : 1,
         }}
       >
-        <Text style={{ color: 'white', fontSize: 16, fontWeight: '700' }}>
-          {loading ? 'Logging in…' : 'Log in'}
+        <Text style={{ fontWeight: "900" }}>
+          {busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
         </Text>
       </Pressable>
 
-      <Link href="/signup" asChild>
-        <Pressable style={{ paddingVertical: 16, alignItems: 'center' }}>
-          <Text style={{ color: 'blue', fontSize: 16, fontWeight: '700' }}>
-            Need an account? Sign up
-          </Text>
-        </Pressable>
-      </Link>
+      <Pressable
+        onPress={() => setMode((m) => (m === "signin" ? "signup" : "signin"))}
+        disabled={busy}
+        style={{
+          padding: 14,
+          borderRadius: 10,
+          alignItems: "center",
+          borderWidth: 1,
+          borderColor: "#999",
+          opacity: busy ? 0.6 : 1,
+        }}
+      >
+        <Text style={{ fontWeight: "900" }}>
+          {mode === "signin" ? "Need an account? Create one" : "Already have an account? Sign in"}
+        </Text>
+      </Pressable>
 
-      <Link href="/" asChild>
-        <Pressable style={{ paddingVertical: 8, alignItems: 'center' }}>
-          <Text style={{ color: 'blue', fontSize: 16 }}>
-            ← Back to Home
-          </Text>
-        </Pressable>
-      </Link>
+      <Text style={{ opacity: 0.7, marginTop: 6 }}>
+        If you don’t get logged in after Sign up, Supabase email confirmation is ON — confirm the email
+        link then sign in.
+      </Text>
     </View>
-  )
+  );
 }
-
-
