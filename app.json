@@ -1,48 +1,85 @@
 {
   "expo": {
-    "name": "polyopen",
+    "name": "PolyOpen",
     "slug": "polyopen",
+    "scheme": "polyopen",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "polyopen",
+    "icon": "./assets/images/polyopen-logo.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true
+    "splash": {
+      "image": "./assets/images/polyopen-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
-        }
-      ]
+    "assetBundlePatterns": [
+      "**/*"
     ],
+    "android": {
+      "package": "com.totliloko.polyopen",
+      "versionCode": 8,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/polyopen-logo.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WAKE_LOCK",
+        "android.permission.BLUETOOTH"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.totliloko.polyopen",
+      "buildNumber": "2",
+      "bitcode": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "PolyOpen uses your camera only when you join a live Speed Date.",
+        "NSMicrophoneUsageDescription": "PolyOpen uses your microphone only when you join a live Speed Date."
+      }
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "plugins": [
+      "expo-font",
+      "expo-router",
+      "expo-notifications",
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc",
+      "expo-iap",
+      "expo-web-browser",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-6439814432951642~8608061442",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ]
+    ],
+    "notification": {
+      "icon": "./assets/images/polyopen-logo.png",
+      "color": "#EC4AA8",
+      "androidMode": "default",
+      "androidCollapsedTitle": "PolyOpen"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6b03c71c-a3d7-440a-80cb-13e17259f092"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/6b03c71c-a3d7-440a-80cb-13e17259f092"
     }
   }
 }
