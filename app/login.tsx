@@ -1,125 +1,214 @@
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { useState } from "react";
+import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { ensureProfileRow, getHasOnboarded } from "../lib/profile";
 import { supabase } from "../lib/supabase";
 
 export default function Login() {
   const router = useRouter();
-
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const onSubmit = async () => {
+  const login = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
+      Alert.alert("Missing info", "Enter your email and password.");
+      return;
+    }
+
+    setBusy(true);
+
     try {
-      if (busy) return;
-      setBusy(true);
-
-      const cleanEmail = email.trim().toLowerCase();
-      if (!cleanEmail) throw new Error("Enter an email.");
-      if (!password || password.length < 6) throw new Error("Password must be at least 6 characters.");
-
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password,
-        });
-        if (error) throw error;
-
-        // Gate handles /onboarding vs /dashboard
-        router.replace("/dashboard");
-        return;
-      }
-
-      // SIGN UP
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password,
       });
 
-      if (error) throw error;
-
-      // If email confirmations are ON, session can be null until they confirm email.
-      if (!data.session) {
-        Alert.alert(
-          "Check your email",
-          "Your account was created. Please confirm the email link, then come back and Sign in."
-        );
-        setMode("signin");
+      if (error) {
+        Alert.alert("Login failed", error.message);
         return;
       }
 
-      // If confirmations are OFF (common in dev), they’ll be logged in immediately:
-      router.replace("/dashboard");
+      const userId = data.user?.id;
+
+      if (!userId) {
+        Alert.alert("Login failed", "No user session was returned.");
+        return;
+      }
+
+      try {
+        await ensureProfileRow(userId);
+      } catch (profileError: any) {
+        console.log(
+          "Login profile row warning:",
+          profileError?.message ?? profileError
+        );
+      }
+
+      let hasOnboarded = false;
+
+      try {
+        hasOnboarded = await getHasOnboarded(userId);
+      } catch (onboardingError: any) {
+        console.log(
+          "Login onboarding warning:",
+          onboardingError?.message ?? onboardingError
+        );
+      }
+
+      router.replace(hasOnboarded ? "/(tabs)/browse" : "/onboarding");
     } catch (e: any) {
-      Alert.alert("Auth failed", e?.message ?? "Unknown error");
+      Alert.alert("Login failed", e?.message ?? "Unknown error");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: "center" }}>
-      <Text style={{ fontSize: 22, fontWeight: "900" }}>
-        {mode === "signin" ? "Sign in" : "Create account"}
-      </Text>
-
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        style={{ borderWidth: 1, borderColor: "#ccc", padding: 12, borderRadius: 10 }}
-      />
-
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password (6+ chars)"
-        secureTextEntry
-        style={{ borderWidth: 1, borderColor: "#ccc", padding: 12, borderRadius: 10 }}
-      />
-
-      <Pressable
-        onPress={onSubmit}
-        disabled={busy}
-        style={{
-          padding: 14,
-          borderRadius: 10,
-          alignItems: "center",
-          borderWidth: 1,
-          borderColor: "#111",
-          opacity: busy ? 0.6 : 1,
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
+      style={{ flex: 1, backgroundColor: "#FFFFFF" }}
+    >
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingTop: 42,
+          paddingBottom: 40,
+          justifyContent: "center",
         }}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={{ fontWeight: "900" }}>
-          {busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
-        </Text>
-      </Pressable>
+        <View style={{ marginBottom: 32, alignItems: "center" }}>
+          <Image
+            source={require("../assets/images/polyopen-logo.png")}
+            style={{
+              width: 140,
+              height: 140,
+              marginBottom: 18,
+            }}
+            resizeMode="contain"
+          />
 
-      <Pressable
-        onPress={() => setMode((m) => (m === "signin" ? "signup" : "signin"))}
-        disabled={busy}
-        style={{
-          padding: 14,
-          borderRadius: 10,
-          alignItems: "center",
-          borderWidth: 1,
-          borderColor: "#999",
-          opacity: busy ? 0.6 : 1,
-        }}
-      >
-        <Text style={{ fontWeight: "900" }}>
-          {mode === "signin" ? "Need an account? Create one" : "Already have an account? Sign in"}
-        </Text>
-      </Pressable>
+          <Text
+            style={{
+              fontSize: 30,
+              fontWeight: "900",
+              color: "#111",
+              marginBottom: 6,
+              textAlign: "center",
+            }}
+          >
+            Ethical love~Open spirituality
+          </Text>
 
-      <Text style={{ opacity: 0.7, marginTop: 6 }}>
-        If you don’t get logged in after Sign up, Supabase email confirmation is ON — confirm the email
-        link then sign in.
-      </Text>
-    </View>
+          <Text
+            style={{
+              fontSize: 15,
+              color: "#666",
+              textAlign: "center",
+            }}
+          >
+            Sign in to your account
+          </Text>
+        </View>
+
+        <View style={{ gap: 12 }}>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Email"
+            placeholderTextColor="#999"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            autoComplete="email"
+            returnKeyType="next"
+            style={{
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              borderRadius: 18,
+              paddingHorizontal: 16,
+              paddingVertical: 16,
+              backgroundColor: "#FFFFFF",
+              fontSize: 16,
+              color: "#111",
+            }}
+          />
+
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            placeholderTextColor="#999"
+            secureTextEntry
+            textContentType="password"
+            autoComplete="password"
+            returnKeyType="done"
+            onSubmitEditing={login}
+            style={{
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              borderRadius: 18,
+              paddingHorizontal: 16,
+              paddingVertical: 16,
+              backgroundColor: "#FFFFFF",
+              fontSize: 16,
+              color: "#111",
+            }}
+          />
+
+          <Pressable
+            onPress={login}
+            disabled={busy}
+            style={{
+              marginTop: 6,
+              backgroundColor: "#111",
+              paddingVertical: 17,
+              borderRadius: 18,
+              alignItems: "center",
+              opacity: busy ? 0.65 : 1,
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "900", fontSize: 18 }}>
+              {busy ? "Signing in..." : "Sign in"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/signup")}
+            style={{
+              alignItems: "center",
+              paddingVertical: 12,
+            }}
+          >
+            <Text
+              style={{
+                color: "#111",
+                fontSize: 16,
+                fontWeight: "500",
+              }}
+            >
+              Create account
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

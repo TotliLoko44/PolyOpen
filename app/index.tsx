@@ -1,52 +1,145 @@
-import { Link } from "expo-router";
-import { Pressable, Text, View } from "react-native";
-import { supabase } from "./lib/supabase";
+import { Redirect } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Image, Text, View } from "react-native";
+import { useAuth } from "../lib/auth";
+import { ensureProfileRow, getHasOnboarded } from "../lib/profile";
 
-export default function Home() {
-  console.log("Supabase client:", supabase);
+type NextHref = "/login" | "/onboarding" | "/(tabs)/browse";
 
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${ms}ms`));
+    }, ms);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
+function BootScreen({ bootError }: { bootError: string | null }) {
   return (
     <View
       style={{
         flex: 1,
-        justifyContent: "center",
         alignItems: "center",
-        gap: 16,
+        justifyContent: "center",
+        backgroundColor: "#FFFFFF",
+        paddingHorizontal: 24,
       }}
     >
-      <Text style={{ fontSize: 24, fontWeight: "700" }}>
-        PolyOpen
+      <Image
+        source={require("../assets/images/polyopen-logo.png")}
+        style={{
+          width: 140,
+          height: 140,
+          marginBottom: 22,
+        }}
+        resizeMode="contain"
+      />
+
+      <Text
+        style={{
+          fontSize: 18,
+          fontWeight: "700",
+          color: "#111111",
+          textAlign: "center",
+          marginBottom: 18,
+        }}
+      >
+        Ethical love~Open spirituality
       </Text>
 
-      <Link href="/login" asChild>
-        <Pressable
-          style={{
-            backgroundColor: "black",
-            paddingVertical: 14,
-            paddingHorizontal: 24,
-            borderRadius: 12,
-          }}
-        >
-          <Text style={{ color: "white", fontSize: 16 }}>
-            Log in
-          </Text>
-        </Pressable>
-      </Link>
+      <ActivityIndicator size="small" color="#111111" />
 
-      <Link href="/signup" asChild>
-        <Pressable
-          style={{
-            backgroundColor: "black",
-            paddingVertical: 14,
-            paddingHorizontal: 24,
-            borderRadius: 12,
-          }}
-        >
-          <Text style={{ color: "white", fontSize: 16 }}>
-            Create account
-          </Text>
-        </Pressable>
-      </Link>
+      <Text
+        style={{
+          marginTop: 14,
+          color: "#666666",
+          textAlign: "center",
+          fontSize: 14,
+          lineHeight: 20,
+        }}
+      >
+        {bootError || "Opening your space..."}
+      </Text>
     </View>
   );
+}
+
+export default function Index() {
+  const { userId, isLoading } = useAuth();
+  const [ready, setReady] = useState(false);
+  const [nextHref, setNextHref] = useState<NextHref>("/login");
+  const [bootError, setBootError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function decide() {
+      if (isLoading) return;
+
+      setReady(false);
+      setBootError(null);
+
+      if (!userId) {
+        if (!alive) return;
+        setNextHref("/login");
+        setReady(true);
+        return;
+      }
+
+      try {
+        try {
+          await withTimeout(ensureProfileRow(userId), 20000, "Profile setup");
+        } catch {
+          if (!alive) return;
+          setBootError("Profile setup is taking longer than expected...");
+        }
+
+        const hasOnboarded = await withTimeout(
+          getHasOnboarded(userId),
+          20000,
+          "Onboarding check"
+        );
+
+        if (!alive) return;
+
+        setBootError(null);
+        setNextHref(hasOnboarded ? "/(tabs)/browse" : "/onboarding");
+      } catch {
+        if (!alive) return;
+
+        setBootError("Could not load your account. Sending you to login.");
+        setNextHref("/login");
+      } finally {
+        if (alive) {
+          setReady(true);
+        }
+      }
+    }
+
+    decide();
+
+    return () => {
+      alive = false;
+    };
+  }, [userId, isLoading]);
+
+  if (isLoading || !ready) {
+    return <BootScreen bootError={bootError} />;
+  }
+
+  return <Redirect href={nextHref} />;
 }

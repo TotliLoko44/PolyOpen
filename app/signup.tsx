@@ -1,147 +1,180 @@
-import { Link, router } from 'expo-router'
-import { useState } from 'react'
-import { Alert, Pressable, Text, TextInput, View } from 'react-native'
-import { supabase } from './lib/supabase'
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { supabase } from "../lib/supabase";
 
 export default function Signup() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const onSignup = async () => {
-    const e = email.trim().toLowerCase()
+  const signup = async () => {
+    const cleanEmail = email.trim().toLowerCase();
 
-    if (!e || !password) {
-      Alert.alert('Missing info', 'Enter an email and password.')
-      return
+    if (!cleanEmail || !password) {
+      Alert.alert("Missing info", "Enter your email and password.");
+      return;
     }
+
     if (password.length < 6) {
-      Alert.alert('Password too short', 'Use at least 6 characters.')
-      return
-    }
-    if (password !== confirm) {
-      Alert.alert('Passwords do not match', 'Confirm password must match.')
-      return
+      Alert.alert("Password too short", "Use at least 6 characters.");
+      return;
     }
 
-    setLoading(true)
-    const { data, error } = await supabase.auth.signUp({
-      email: e,
-      password,
-    })
-    setLoading(false)
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+      });
 
-    if (error) {
-      Alert.alert('Sign up failed', error.message)
-      return
-    }
+      if (error) {
+        Alert.alert("Sign up failed", error.message);
+        return;
+      }
 
-    // If email confirmation is ON in Supabase, session may be null until they confirm.
-    if (!data.session) {
       Alert.alert(
-        'Check your email',
-        'Confirm your email address, then come back and log in.'
-      )
-      router.replace('/login')
-      return
+        "Account created",
+        "Your account was created. If email confirmation is enabled, confirm your email and then sign in.",
+        [{ text: "OK", onPress: () => router.replace("/login") }]
+      );
+    } catch (e: any) {
+      Alert.alert("Sign up failed", e?.message ?? "Unknown error");
+    } finally {
+      setBusy(false);
     }
-
-    router.replace('/dashboard')
-  }
+  };
 
   return (
-    <View style={{ flex: 1, padding: 20, justifyContent: 'center' }}>
-      <Text style={{ fontSize: 34, fontWeight: '700', marginBottom: 18 }}>
-        Create account
-      </Text>
-
-      <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
-        Email
-      </Text>
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        placeholder="you@example.com"
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1, backgroundColor: "#FFF9FC" }}
+    >
+      <View
         style={{
-          borderWidth: 1,
-          borderColor: '#ddd',
-          padding: 14,
-          borderRadius: 12,
-          marginBottom: 14,
-        }}
-      />
-
-      <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
-        Password
-      </Text>
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholder="••••••••"
-        style={{
-          borderWidth: 1,
-          borderColor: '#ddd',
-          padding: 14,
-          borderRadius: 12,
-          marginBottom: 14,
-        }}
-      />
-
-      <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
-        Confirm password
-      </Text>
-      <TextInput
-        value={confirm}
-        onChangeText={setConfirm}
-        secureTextEntry
-        placeholder="••••••••"
-        style={{
-          borderWidth: 1,
-          borderColor: '#ddd',
-          padding: 14,
-          borderRadius: 12,
-          marginBottom: 18,
-        }}
-      />
-
-      <Pressable
-        onPress={onSignup}
-        disabled={loading}
-        style={{
-          backgroundColor: 'black',
-          paddingVertical: 16,
-          borderRadius: 14,
-          alignItems: 'center',
-          opacity: loading ? 0.6 : 1,
+          flex: 1,
+          paddingHorizontal: 24,
+          justifyContent: "center",
         }}
       >
-        <Text style={{ color: 'white', fontSize: 16, fontWeight: '700' }}>
-          {loading ? 'Creating…' : 'Create account'}
-        </Text>
-      </Pressable>
+        <View style={{ marginBottom: 28, alignItems: "center" }}>
+          <Image
+            source={require("../assets/images/polyopen-logo.png")}
+            style={{
+              width: 110,
+              height: 110,
+              marginBottom: 14,
+            }}
+            resizeMode="contain"
+          />
 
-      <Link href="/login" asChild>
-        <Pressable style={{ paddingVertical: 16, alignItems: 'center' }}>
-          <Text style={{ color: 'blue', fontSize: 16, fontWeight: '700' }}>
-            Already have an account? Log in
+          <Text
+            style={{
+              fontSize: 28,
+              fontWeight: "900",
+              color: "#111",
+              marginBottom: 6,
+            }}
+          >
+            PolyOpen
           </Text>
-        </Pressable>
-      </Link>
 
-      <Link href="/" asChild>
-        <Pressable style={{ paddingVertical: 8, alignItems: 'center' }}>
-          <Text style={{ color: 'blue', fontSize: 16 }}>
-            ← Back to Home
+          <Text
+            style={{
+              fontSize: 15,
+              color: "#7A6E79",
+              textAlign: "center",
+            }}
+          >
+            Create your account
           </Text>
-        </Pressable>
-      </Link>
-    </View>
-  )
+        </View>
+
+        <View style={{ gap: 12 }}>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Email"
+            placeholderTextColor="#9A9098"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            style={{
+              borderWidth: 1,
+              borderColor: "#E6D8E2",
+              borderRadius: 18,
+              paddingHorizontal: 16,
+              paddingVertical: 16,
+              backgroundColor: "#FFFFFF",
+              fontSize: 16,
+              color: "#111",
+            }}
+          />
+
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            placeholderTextColor="#9A9098"
+            secureTextEntry
+            style={{
+              borderWidth: 1,
+              borderColor: "#E6D8E2",
+              borderRadius: 18,
+              paddingHorizontal: 16,
+              paddingVertical: 16,
+              backgroundColor: "#FFFFFF",
+              fontSize: 16,
+              color: "#111",
+            }}
+          />
+
+          <Pressable
+            onPress={signup}
+            disabled={busy}
+            style={{
+              marginTop: 6,
+              backgroundColor: "#111",
+              paddingVertical: 17,
+              borderRadius: 18,
+              alignItems: "center",
+              opacity: busy ? 0.65 : 1,
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "900", fontSize: 18 }}>
+              {busy ? "Creating account..." : "Create account"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.replace("/login")}
+            style={{
+              alignItems: "center",
+              paddingVertical: 12,
+            }}
+          >
+            <Text
+              style={{
+                color: "#111",
+                fontSize: 16,
+                fontWeight: "500",
+              }}
+            >
+              Back to login
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  );
 }
-
-
-

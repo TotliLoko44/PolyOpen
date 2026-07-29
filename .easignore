@@ -1,0 +1,163 @@
+# Existing .gitignore rules
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+app-example
+
+# generated native folders
+/ios
+/android
+
+# ============================================================
+# PolyOpen EAS Build upload exclusions
+# Generated to prevent large local artifacts from being sent.
+# Source code, app assets, package files, and configuration stay.
+# ============================================================
+
+# Git and editor metadata
+.git/
+.github/
+.vscode/
+.idea/
+
+# Local dependencies and Expo caches
+node_modules/
+.expo/
+.expo-shared/
+.cache/
+.metro-cache/
+.npm/
+.yarn/cache/
+.tmp/
+tmp/
+temp/
+
+# Test and coverage output
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Logs and crash dumps
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.stackdump
+*.hprof
+
+# Existing Android build artifacts
+*.apk
+*.aab
+*.apks
+build-*.apk
+build-*.aab
+android/app/build/
+android/.gradle/
+android/build/
+
+# Existing iOS build artifacts
+*.ipa
+ios/build/
+DerivedData/
+
+# Generic compiled output
+dist/
+build/
+out/
+
+# Archives and repository snapshots
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.gz
+*.7z
+*.rar
+
+# Local context captures and diagnostics
+polyopen_*context*.txt
+polyopen_*context*.tar.gz
+livekit_room_api_*.txt
+live_ui_targeted_*.txt
+*_context_*.txt
+*_context_*.tar.gz
+diagnostic_*.txt
+diagnostics/
+reports/
+
+# Backups and recovery copies inside the repository
+backups/
+backup/
+recovery/
+recovery_builds/
+release_builds/
+release_staging/
+*.bak
+*.backup
+*.orig
+
+# Local screenshots and recordings outside app asset folders
+screenshots/
+screen-recordings/
+recordings/
+videos/
+captures/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment files and local credentials
+.env
+.env.*
+!.env.example
+credentials.json
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+
+# Supabase local runtime and temporary state
+supabase/.temp/
+supabase/.branches/
+supabase/.cache/
+
+# EAS inspection output created by this repair
+.eas-build-inspect/
