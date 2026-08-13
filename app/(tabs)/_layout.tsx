@@ -509,7 +509,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="matches"
         options={{
-          title: "Matches",
+          title: "Connections",
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? "flame" : "flame-outline"}

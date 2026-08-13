@@ -84,7 +84,7 @@ export default function Dashboard() {
       </Pressable>
 
       <Pressable onPress={() => router.push("/(tabs)/matches")}>
-        <Text>Matches</Text>
+        <Text>Connections</Text>
       </Pressable>
 
       <Pressable onPress={() => router.push("/(tabs)/messages")}>

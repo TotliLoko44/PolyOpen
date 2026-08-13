@@ -1,9 +1,12 @@
-import React, {
+import {
+  useCallback,
   useEffect,
-  useMemo,
+  useRef,
   useState,
 } from "react";
+
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   SafeAreaView,
@@ -12,571 +15,759 @@ import {
   Text,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+
+import {
+  useFocusEffect,
+  useRouter,
+} from "expo-router";
 
 import {
   MATCH_SCOPE_OPTIONS,
   MatchScope,
   scopeLabel,
 } from "../../lib/speedDating";
+
 import {
   cancelRemoteSpeedDatingQueue,
-  cleanupRemoteSpeedDatingState,
+  getAuthenticatedSpeedDatingUser,
+  getRemoteSpeedDatingMatch,
   joinRemoteSpeedDatingQueue,
   recoverRemoteSpeedDatingSession,
 } from "../../lib/speedDatingRemote";
 
+type LobbyState =
+  | "checking"
+  | "idle"
+  | "joining"
+  | "waiting"
+  | "matched"
+  | "leaving"
+  | "error";
+
+const POLL_INTERVAL_MS = 3000;
+
 export default function SpeedDatingLobbyScreen() {
   const router = useRouter();
 
+  const mountedRef = useRef(true);
+
+  const pollTimerRef =
+    useRef<ReturnType<typeof setInterval> | null>(
+      null,
+    );
+
+  const navigatingRef = useRef(false);
+
+  const [lobbyState, setLobbyState] =
+    useState<LobbyState>("checking");
+
   const [selectedScope, setSelectedScope] =
-    useState<MatchScope>("worldwide");
+    useState<MatchScope>(
+      MATCH_SCOPE_OPTIONS[0].value,
+    );
 
-  const [isStarting, setIsStarting] =
-    useState(false);
-
-  const [isRecovering, setIsRecovering] =
-    useState(true);
-
-  const [recoveryMessage, setRecoveryMessage] =
+  const [statusMessage, setStatusMessage] =
     useState(
       "Checking for an unfinished Speed Date…",
     );
 
-  const [recoveredSessionId, setRecoveredSessionId] =
-    useState<string | null>(null);
+  const [
+    recoveredSessionId,
+    setRecoveredSessionId,
+  ] = useState<string | null>(null);
 
-  const [recoveredScope, setRecoveredScope] =
-    useState<MatchScope | null>(null);
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
 
-  const selectedOption = useMemo(
-    () =>
-      MATCH_SCOPE_OPTIONS.find(
-        (option) =>
-          option.value === selectedScope,
-      ) ?? MATCH_SCOPE_OPTIONS[2],
-    [selectedScope],
-  );
+  const openSession = useCallback(
+    (sessionId: string) => {
+      if (
+        !sessionId ||
+        navigatingRef.current
+      ) {
+        return;
+      }
 
-  const openSpeedDateRoom = (
-    sessionId: string,
-    scope: MatchScope,
-  ) => {
-    router.push(
-      `/speed-date/${encodeURIComponent(
-        sessionId,
-      )}?scope=${encodeURIComponent(scope)}` as never,
-    );
-  };
+      navigatingRef.current = true;
 
-  useEffect(() => {
-    let active = true;
+      stopPolling();
 
-    const recoverLobbyState = async () => {
-      setIsRecovering(true);
-      setRecoveryMessage(
-        "Checking for an unfinished Speed Date…",
+      setLobbyState("matched");
+
+      setStatusMessage(
+        "Date found! Opening your private Speed Date…",
       );
 
+      router.push(
+        `/speed-date/${encodeURIComponent(
+          sessionId,
+        )}`,
+      );
+
+      setTimeout(() => {
+        navigatingRef.current = false;
+      }, 1500);
+    },
+    [
+      router,
+      stopPolling,
+    ],
+  );
+
+  const checkForMatch = useCallback(
+    async () => {
       try {
-        await cleanupRemoteSpeedDatingState();
+        const result =
+          await getRemoteSpeedDatingMatch();
 
-        const recovered =
-          await recoverRemoteSpeedDatingSession();
-
-        if (!active) {
+        if (!mountedRef.current) {
           return;
         }
 
         if (
-          recovered.status === "recovered" &&
-          recovered.sessionId
+          result.status === "matched" &&
+          result.sessionId
         ) {
-          const normalizedScope =
-            MATCH_SCOPE_OPTIONS.some(
-              (option) =>
-                option.value ===
-                recovered.scope,
-            )
-              ? (recovered.scope as MatchScope)
-              : "worldwide";
+          openSession(result.sessionId);
+          return;
+        }
 
+        if (
+          result.status === "waiting"
+        ) {
+          setLobbyState("waiting");
+
+          setStatusMessage(
+            "Finding someone who's ready to meet you…",
+          );
+
+          return;
+        }
+
+        if (
+          result.status === "idle"
+        ) {
+          stopPolling();
+
+          setLobbyState("idle");
+
+          setStatusMessage(
+            "Ready when you are.",
+          );
+        }
+      } catch (error: any) {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        stopPolling();
+
+        setLobbyState("error");
+
+        setStatusMessage(
+          error?.message ??
+            "PolyOpen could not check the matchmaking queue.",
+        );
+      }
+    },
+    [
+      openSession,
+      stopPolling,
+    ],
+  );
+
+  const startPolling = useCallback(() => {
+    stopPolling();
+
+    void checkForMatch();
+
+    pollTimerRef.current =
+      setInterval(() => {
+        void checkForMatch();
+      }, POLL_INTERVAL_MS);
+  }, [
+    checkForMatch,
+    stopPolling,
+  ]);
+
+  const recoverLobby = useCallback(
+    async () => {
+      navigatingRef.current = false;
+
+      setLobbyState("checking");
+
+      setStatusMessage(
+        "Checking for an unfinished Speed Date…",
+      );
+
+      try {
+        await getAuthenticatedSpeedDatingUser();
+
+        const recovery =
+          await recoverRemoteSpeedDatingSession();
+
+        if (!mountedRef.current) {
+          return;
+        }
+
+        if (
+          recovery.status === "recovered" &&
+          recovery.sessionId
+        ) {
           setRecoveredSessionId(
-            recovered.sessionId,
+            recovery.sessionId,
           );
 
-          setRecoveredScope(
-            normalizedScope,
-          );
+          setLobbyState("idle");
 
-          setSelectedScope(
-            normalizedScope,
-          );
-
-          setRecoveryMessage(
-            recovered.sessionStatus ===
-              "continued"
-              ? "Your previous mutual match is ready."
-              : recovered.sessionStatus ===
-                  "decision"
-                ? "Your previous Speed Date is waiting for your private decision."
-                : "You have an unfinished Speed Date ready to resume.",
+          setStatusMessage(
+            recovery.sessionStatus === "decision"
+              ? "Your previous Speed Date is waiting for your private decision."
+              : "You have an unfinished Speed Date ready to resume.",
           );
 
           return;
         }
 
         setRecoveredSessionId(null);
-        setRecoveredScope(null);
-        setRecoveryMessage(
+
+        const queue =
+          await getRemoteSpeedDatingMatch();
+
+        if (!mountedRef.current) {
+          return;
+        }
+
+        if (
+          queue.status === "matched" &&
+          queue.sessionId
+        ) {
+          openSession(queue.sessionId);
+          return;
+        }
+
+        if (
+          queue.status === "waiting"
+        ) {
+          setLobbyState("waiting");
+
+          setStatusMessage(
+            "You're already in line. Finding someone who's ready to meet you…",
+          );
+
+          startPolling();
+          return;
+        }
+
+        setLobbyState("idle");
+
+        setStatusMessage(
           "No unfinished Speed Date was found.",
         );
-      } catch (error) {
-        console.warn(
-          "Speed Dating recovery warning",
-          error,
-        );
-
-        if (!active) {
+      } catch (error: any) {
+        if (!mountedRef.current) {
           return;
         }
 
-        setRecoveredSessionId(null);
-        setRecoveredScope(null);
-        setRecoveryMessage(
-          "Recovery is temporarily unavailable. You can still join a new queue.",
-        );
-      } finally {
-        if (active) {
-          setIsRecovering(false);
-        }
-      }
-    };
+        setLobbyState("error");
 
-    void recoverLobbyState();
+        setStatusMessage(
+          error?.message ??
+            "PolyOpen could not prepare Speed Dating.",
+        );
+      }
+    },
+    [
+      openSession,
+      startPolling,
+    ],
+  );
+
+  useEffect(() => {
+    mountedRef.current = true;
 
     return () => {
-      active = false;
+      mountedRef.current = false;
+      stopPolling();
     };
-  }, []);
+  }, [stopPolling]);
 
-  const resumeRecoveredSpeedDate = () => {
-    if (
-      !recoveredSessionId ||
-      !recoveredScope
-    ) {
-      return;
-    }
+  useFocusEffect(
+    useCallback(() => {
+      mountedRef.current = true;
 
-    openSpeedDateRoom(
-      recoveredSessionId,
-      recoveredScope,
-    );
-  };
+      void recoverLobby();
 
-  const discardRecoveredSpeedDate = async () => {
-    if (isStarting) {
-      return;
-    }
+      return () => {
+        stopPolling();
+      };
+    }, [
+      recoverLobby,
+      stopPolling,
+    ]),
+  );
 
-    setIsStarting(true);
-
-    try {
-      await cancelRemoteSpeedDatingQueue();
+  const startDate = useCallback(
+    async () => {
+      if (
+        lobbyState === "joining" ||
+        lobbyState === "waiting" ||
+        lobbyState === "matched"
+      ) {
+        return;
+      }
 
       setRecoveredSessionId(null);
-      setRecoveredScope(null);
-      setRecoveryMessage(
-        "Previous Speed Dating state cleared.",
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "PolyOpen could not clear the previous Speed Dating state.";
 
-      Alert.alert(
-        "Unable to clear previous session",
-        message,
-      );
-    } finally {
-      setIsStarting(false);
-    }
-  };
+      setLobbyState("joining");
 
-  const startSpeedDate = async () => {
-    if (isStarting) {
+      setStatusMessage(
+        "Joining the live Speed Dating queue…",
+      );
+
+      try {
+        await getAuthenticatedSpeedDatingUser();
+
+        const result =
+          await joinRemoteSpeedDatingQueue(
+            selectedScope,
+          );
+
+        if (!mountedRef.current) {
+          return;
+        }
+
+        if (
+          result.status === "matched" &&
+          result.sessionId
+        ) {
+          openSession(result.sessionId);
+          return;
+        }
+
+        setLobbyState("waiting");
+
+        setStatusMessage(
+          "Finding someone who's ready to meet you…",
+        );
+
+        startPolling();
+      } catch (error: any) {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        setLobbyState("error");
+
+        setStatusMessage(
+          error?.message ??
+            "PolyOpen could not join the Speed Dating queue.",
+        );
+
+        Alert.alert(
+          "Unable to start Speed Date",
+          error?.message ??
+            "Please try again.",
+        );
+      }
+    },
+    [
+      lobbyState,
+      openSession,
+      selectedScope,
+      startPolling,
+    ],
+  );
+
+  const leaveQueue = useCallback(
+    async () => {
+      if (
+        lobbyState !== "waiting"
+      ) {
+        return;
+      }
+
+      stopPolling();
+
+      setLobbyState("leaving");
+
+      setStatusMessage(
+        "Leaving the matchmaking queue…",
+      );
+
+      try {
+        await cancelRemoteSpeedDatingQueue();
+
+        if (!mountedRef.current) {
+          return;
+        }
+
+        setLobbyState("idle");
+
+        setStatusMessage(
+          "You left the queue. Start again whenever you're ready.",
+        );
+      } catch (error: any) {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        setLobbyState("error");
+
+        setStatusMessage(
+          error?.message ??
+            "PolyOpen could not leave the queue.",
+        );
+
+        Alert.alert(
+          "Unable to leave queue",
+          error?.message ??
+            "Please try again.",
+        );
+      }
+    },
+    [
+      lobbyState,
+      stopPolling,
+    ],
+  );
+
+  const resumeDate = useCallback(() => {
+    if (!recoveredSessionId) {
       return;
     }
 
-    setIsStarting(true);
+    openSession(recoveredSessionId);
+  }, [
+    openSession,
+    recoveredSessionId,
+  ]);
 
-    try {
-      await cleanupRemoteSpeedDatingState();
-
-      const recovered =
-        await recoverRemoteSpeedDatingSession();
-
-      if (
-        recovered.status === "recovered" &&
-        recovered.sessionId
-      ) {
-        const recoveredScopeValue =
-          MATCH_SCOPE_OPTIONS.some(
-            (option) =>
-              option.value ===
-              recovered.scope,
-          )
-            ? (recovered.scope as MatchScope)
-            : selectedScope;
-
-        setRecoveredSessionId(
-          recovered.sessionId,
-        );
-
-        setRecoveredScope(
-          recoveredScopeValue,
-        );
-
-        openSpeedDateRoom(
-          recovered.sessionId,
-          recoveredScopeValue,
-        );
-
-        return;
-      }
-
-      const result =
-        await joinRemoteSpeedDatingQueue(
-          selectedScope,
-        );
-
-      if (
-        result.status === "matched" &&
-        result.sessionId
-      ) {
-        openSpeedDateRoom(
-          result.sessionId,
-          selectedScope,
-        );
-
-        return;
-      }
-
-      if (result.status === "waiting") {
-        openSpeedDateRoom(
-          "queue",
-          selectedScope,
-        );
-
-        return;
-      }
-
-      throw new Error(
-        `Unexpected queue state: ${result.status}`,
-      );
-    } catch (error) {
-      console.error(
-        "Unable to join Speed Dating",
-        error,
-      );
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : "PolyOpen could not join the Speed Dating queue.";
-
-      Alert.alert(
-        "Unable to start Speed Dating",
-        message,
-      );
-
-      setIsStarting(false);
-    }
-  };
+  const isBusy =
+    lobbyState === "checking" ||
+    lobbyState === "joining" ||
+    lobbyState === "leaving";
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
-        style={styles.screen}
-        contentContainerStyle={styles.content}
+        style={styles.scroll}
+        contentContainerStyle={
+          styles.content
+        }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <View style={styles.liveBadge}>
-            <View style={styles.liveDot} />
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
 
-            <Text style={styles.liveBadgeText}>
-              LIVE SPEED DATING
-            </Text>
-          </View>
-
-          <Text style={styles.heroTitle}>
-            Meet someone real.
-          </Text>
-
-          <Text style={styles.heroSubtitle}>
-            Join a live queue and have a private,
-            respectful two-minute conversation with
-            another PolyOpen member.
+          <Text style={styles.liveBadgeText}>
+            LIVE SPEED DATING
           </Text>
         </View>
 
+        <Text style={styles.heroTitle}>
+          Meet someone{"\n"}real.
+        </Text>
+
+        <Text style={styles.heroDescription}>
+          Join a live queue and have a
+          private, respectful two-minute
+          conversation with another
+          PolyOpen member.
+        </Text>
+
         <View style={styles.recoveryCard}>
-          <View style={styles.recoveryHeader}>
+          <View style={styles.cardLabelRow}>
             <View
               style={[
-                styles.recoveryStatusDot,
-                recoveredSessionId &&
-                  styles.recoveryStatusDotActive,
+                styles.statusDot,
+                lobbyState === "waiting" &&
+                  styles.statusDotLive,
               ]}
             />
 
-            <Text style={styles.recoveryEyebrow}>
-              SESSION RECOVERY
+            <Text style={styles.cardLabel}>
+              {lobbyState === "waiting"
+                ? "LIVE QUEUE"
+                : "SESSION RECOVERY"}
             </Text>
           </View>
 
-          <Text style={styles.recoveryText}>
-            {recoveryMessage}
+          <Text style={styles.statusMessage}>
+            {statusMessage}
           </Text>
 
-          {isRecovering ? (
-            <Text style={styles.recoveryWorkingText}>
-              Checking securely…
+          {isBusy ? (
+            <ActivityIndicator
+              size="small"
+              style={styles.loader}
+            />
+          ) : null}
+
+          {recoveredSessionId ? (
+            <Pressable
+              style={styles.resumeButton}
+              onPress={resumeDate}
+            >
+              <Text
+                style={
+                  styles.resumeButtonText
+                }
+              >
+                Resume Speed Date
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {lobbyState !== "waiting" &&
+        !recoveredSessionId ? (
+          <>
+            <Text style={styles.sectionLabel}>
+              WHO WOULD YOU LIKE TO MEET?
             </Text>
-          ) : null}
 
-          {recoveredSessionId &&
-          recoveredScope ? (
-            <View style={styles.recoveryActions}>
-              <Pressable
-                accessibilityRole="button"
-                disabled={isStarting}
-                onPress={
-                  resumeRecoveredSpeedDate
-                }
-                style={styles.resumeButton}
-              >
-                <Text
-                  style={
-                    styles.resumeButtonText
-                  }
-                >
-                  Resume Speed Date
-                </Text>
-              </Pressable>
+            <View style={styles.scopeList}>
+              {MATCH_SCOPE_OPTIONS.map(
+                (option) => {
+                  const selected =
+                    selectedScope ===
+                    option.value;
 
-              <Pressable
-                accessibilityRole="button"
-                disabled={isStarting}
-                onPress={() =>
-                  void discardRecoveredSpeedDate()
-                }
-                style={styles.clearRecoveryButton}
-              >
-                <Text
-                  style={
-                    styles.clearRecoveryButtonText
-                  }
-                >
-                  Clear
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.liveSystemCard}>
-          <Text style={styles.liveSystemEyebrow}>
-            LIVE MATCHMAKING IS ACTIVE
-          </Text>
-
-          <Text style={styles.liveSystemTitle}>
-            Two people. Two minutes. One private choice.
-          </Text>
-
-          <Text style={styles.liveSystemText}>
-            PolyOpen now uses authenticated Supabase
-            matchmaking. Fake demo profiles are no longer
-            used in the Speed Dating flow.
-          </Text>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            Who would you like to meet?
-          </Text>
-
-          <Text style={styles.sectionDescription}>
-            Choose a pool before joining the live queue.
-          </Text>
-        </View>
-
-        <View style={styles.scopeGrid}>
-          {MATCH_SCOPE_OPTIONS.map((option) => {
-            const isSelected =
-              option.value === selectedScope;
-
-            return (
-              <Pressable
-                key={option.value}
-                accessibilityRole="button"
-                accessibilityState={{
-                  selected: isSelected,
-                }}
-                disabled={isStarting}
-                onPress={() =>
-                  setSelectedScope(option.value)
-                }
-                style={({ pressed }) => [
-                  styles.scopeCard,
-                  isSelected &&
-                    styles.scopeCardSelected,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.scopeEmoji}>
-                  {option.emoji}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.scopeTitle,
-                    isSelected &&
-                      styles.scopeTitleSelected,
-                  ]}
-                >
-                  {option.title}
-                </Text>
-
-                <Text style={styles.scopeDescription}>
-                  {option.description}
-                </Text>
-
-                {isSelected ? (
-                  <View style={styles.selectedPill}>
-                    <Text
-                      style={styles.selectedPillText}
+                  return (
+                    <Pressable
+                      key={option.value}
+                      onPress={() =>
+                        setSelectedScope(
+                          option.value,
+                        )
+                      }
+                      disabled={isBusy}
+                      style={[
+                        styles.scopeButton,
+                        selected &&
+                          styles.scopeButtonSelected,
+                      ]}
                     >
-                      Selected
-                    </Text>
-                  </View>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
+                      <Text
+                        style={[
+                          styles.scopeEmoji,
+                          selected &&
+                            styles.scopeEmojiSelected,
+                        ]}
+                      >
+                        {option.emoji}
+                      </Text>
 
-        {selectedOption?.privacyNote ? (
-          <View style={styles.privacyCard}>
-            <Text style={styles.privacyIcon}>
-              🔒
+                      <Text
+                        style={[
+                          styles.scopeButtonText,
+                          selected &&
+                            styles.scopeButtonTextSelected,
+                        ]}
+                      >
+                        {option.title}
+                      </Text>
+                    </Pressable>
+                  );
+                },
+              )}
+            </View>
+
+            <Pressable
+              onPress={() => {
+                void startDate();
+              }}
+              disabled={isBusy}
+              style={({ pressed }) => [
+                styles.startButton,
+                pressed &&
+                  styles.buttonPressed,
+                isBusy &&
+                  styles.buttonDisabled,
+              ]}
+            >
+              {lobbyState ===
+              "joining" ? (
+                <ActivityIndicator
+                  size="small"
+                />
+              ) : (
+                <>
+                  <Text
+                    style={
+                      styles.startButtonTitle
+                    }
+                  >
+                    START DATE
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.startButtonSubtitle
+                    }
+                  >
+                    Find someone now
+                  </Text>
+                </>
+              )}
+            </Pressable>
+
+            <Text style={styles.scopeNote}>
+              Current pool:{" "}
+              {scopeLabel(selectedScope)}
+            </Text>
+          </>
+        ) : null}
+
+        {lobbyState === "waiting" ? (
+          <View style={styles.waitingCard}>
+            <ActivityIndicator
+              size="large"
+              style={styles.waitingLoader}
+            />
+
+            <Text style={styles.waitingTitle}>
+              Finding your date…
             </Text>
 
-            <View style={styles.privacyContent}>
-              <Text style={styles.privacyTitle}>
-                Your privacy matters
-              </Text>
+            <Text
+              style={
+                styles.waitingDescription
+              }
+            >
+              You're live in the queue.
+              PolyOpen will automatically
+              open the date when another
+              available member joins.
+            </Text>
 
-              <Text style={styles.privacyText}>
-                {selectedOption.privacyNote}
+            <View style={styles.waitingPulse}>
+              <Text
+                style={
+                  styles.waitingPulseText
+                }
+              >
+                SEARCHING LIVE
               </Text>
             </View>
+
+            <Pressable
+              style={styles.leaveButton}
+              onPress={() => {
+                void leaveQueue();
+              }}
+            >
+              <Text
+                style={
+                  styles.leaveButtonText
+                }
+              >
+                LEAVE QUEUE
+              </Text>
+            </Pressable>
           </View>
         ) : null}
 
-        <View style={styles.explainerCard}>
-          <Text style={styles.explainerEyebrow}>
+        <View style={styles.matchmakingCard}>
+          <Text
+            style={
+              styles.matchmakingEyebrow
+            }
+          >
+            LIVE MATCHMAKING IS ACTIVE
+          </Text>
+
+          <Text
+            style={
+              styles.matchmakingTitle
+            }
+          >
+            Two people. Two minutes.
+            {"\n"}One private choice.
+          </Text>
+
+          <Text
+            style={
+              styles.matchmakingDescription
+            }
+          >
+            PolyOpen uses authenticated
+            Supabase matchmaking. When two
+            compatible members are waiting
+            in the same pool, PolyOpen
+            creates a private Speed Date
+            automatically.
+          </Text>
+        </View>
+
+        <View style={styles.howCard}>
+          <Text style={styles.howTitle}>
             HOW LIVE SPEED DATING WORKS
           </Text>
 
-          <Text style={styles.explainerItem}>
-            1. PolyOpen places you in an authenticated
-            matchmaking queue.
-          </Text>
+          <View style={styles.step}>
+            <Text style={styles.stepNumber}>
+              1
+            </Text>
 
-          <Text style={styles.explainerItem}>
-            2. When another member joins the same pool,
-            Supabase creates one private session for both
-            people.
-          </Text>
+            <View style={styles.stepCopy}>
+              <Text style={styles.stepTitle}>
+                Start Date
+              </Text>
 
-          <Text style={styles.explainerItem}>
-            3. The shared server timer gives both people
-            the same two-minute ending time.
-          </Text>
+              <Text style={styles.stepText}>
+                Choose your pool and enter
+                the live matchmaking queue.
+              </Text>
+            </View>
+          </View>
 
-          <Text style={styles.explainerItem}>
-            4. Chat unlocks only when both people privately
-            choose Continue.
-          </Text>
+          <View style={styles.step}>
+            <Text style={styles.stepNumber}>
+              2
+            </Text>
+
+            <View style={styles.stepCopy}>
+              <Text style={styles.stepTitle}>
+                Meet live
+              </Text>
+
+              <Text style={styles.stepText}>
+                When another member is
+                available, both of you enter
+                a private two-minute video
+                date.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.step}>
+            <Text style={styles.stepNumber}>
+              3
+            </Text>
+
+            <View style={styles.stepCopy}>
+              <Text style={styles.stepTitle}>
+                Choose privately
+              </Text>
+
+              <Text style={styles.stepText}>
+                After the date, choose
+                Continue or Pass. A
+                connection is created only
+                when both people choose
+                Continue.
+              </Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.coachingCard}>
-          <Text style={styles.coachingTitle}>
-            Private conversation prompts
-          </Text>
-
-          <Text style={styles.coachingText}>
-            Prompts are selected locally on your device.
-            PolyOpen does not analyze either person’s face,
-            movements, expressions, voice, or behavior.
-          </Text>
-        </View>
-
-        <View style={styles.commitmentCard}>
-          <Text style={styles.commitmentTitle}>
-            The two-minute commitment
-          </Text>
-
-          <Text style={styles.commitmentText}>
-            Stay present and respectful until the timer
-            ends unless leaving is necessary for your
-            comfort or safety.
-          </Text>
-        </View>
-
-        <Pressable
-          accessibilityRole="button"
-          disabled={
-            isStarting ||
-            isRecovering
-          }
-          onPress={startSpeedDate}
-          style={({ pressed }) => [
-            styles.startButton,
-            (isStarting ||
-              isRecovering) &&
-              styles.startButtonDisabled,
-            pressed &&
-              !isStarting &&
-              !isRecovering &&
-              styles.startButtonPressed,
-          ]}
-        >
-          <Text style={styles.startButtonText}>
-            {isRecovering
-              ? "Checking previous session..."
-              : isStarting
-                ? "Joining the live queue..."
-                : recoveredSessionId
-                  ? "Resume your Speed Date above"
-                  : `Find a ${scopeLabel(
-                      selectedScope,
-                    )} Date`}
-          </Text>
-
-          <Text style={styles.startButtonArrow}>
-            →
-          </Text>
-        </Pressable>
-
-        <Text style={styles.adDisclosure}>
-          A production advertisement checkpoint will be
-          connected after LiveKit video integration.
-          Premium + No Ads members will skip it.
-        </Text>
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -587,335 +778,351 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFF8FC",
   },
-  screen: {
+
+  scroll: {
     flex: 1,
-    backgroundColor: "#FFF8FC",
   },
+
   content: {
     paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 130,
+    paddingTop: 32,
   },
-  hero: {
-    paddingTop: 8,
-    paddingBottom: 22,
-  },
+
   liveBadge: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    backgroundColor: "#FCE1F0",
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    backgroundColor: "#FFE0F1",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginBottom: 22,
   },
+
   liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#E00072",
-  },
-  liveBadgeText: {
-    color: "#9C0051",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-  heroTitle: {
-    marginTop: 18,
-    color: "#1D1219",
-    fontSize: 38,
-    lineHeight: 43,
-    fontWeight: "900",
-    letterSpacing: -1.2,
-  },
-  heroSubtitle: {
-    marginTop: 12,
-    color: "#6C5B65",
-    fontSize: 17,
-    lineHeight: 25,
-    fontWeight: "500",
-  },
-  recoveryCard: {
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: "#E7D4DF",
-    borderRadius: 20,
-    padding: 17,
-    backgroundColor: "#FFFFFF",
-  },
-  recoveryHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  recoveryStatusDot: {
     width: 9,
     height: 9,
-    borderRadius: 5,
-    backgroundColor: "#AFA2A9",
+    borderRadius: 999,
+    backgroundColor: "#E60087",
+    marginRight: 10,
   },
-  recoveryStatusDotActive: {
-    backgroundColor: "#2FBF71",
-  },
-  recoveryEyebrow: {
-    marginLeft: 8,
-    color: "#725E69",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-  },
-  recoveryText: {
-    marginTop: 9,
-    color: "#382933",
+
+  liveBadgeText: {
+    color: "#A30A5D",
     fontSize: 14,
-    lineHeight: 21,
-    fontWeight: "700",
-  },
-  recoveryWorkingText: {
-    marginTop: 7,
-    color: "#887681",
-    fontSize: 12,
-  },
-  recoveryActions: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 14,
-  },
-  resumeButton: {
-    flex: 1,
-    minHeight: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 15,
-    backgroundColor: "#F72A94",
-  },
-  resumeButtonText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  clearRecoveryButton: {
-    minWidth: 82,
-    minHeight: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#E2CDD8",
-    borderRadius: 15,
-    backgroundColor: "#FFF8FC",
-  },
-  clearRecoveryButtonText: {
-    color: "#715C67",
-    fontSize: 13,
     fontWeight: "800",
-  },
-  liveSystemCard: {
-    borderRadius: 24,
-    padding: 20,
-    backgroundColor: "#1D1219",
-  },
-  liveSystemEyebrow: {
-    color: "#FF86C2",
-    fontSize: 10,
-    fontWeight: "900",
     letterSpacing: 1,
   },
-  liveSystemTitle: {
-    marginTop: 9,
-    color: "#FFFFFF",
-    fontSize: 21,
-    lineHeight: 28,
+
+  heroTitle: {
+    color: "#171014",
+    fontSize: 48,
+    lineHeight: 53,
     fontWeight: "900",
+    letterSpacing: -2,
   },
-  liveSystemText: {
-    marginTop: 9,
-    color: "#CDBBC4",
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  sectionHeader: {
-    marginTop: 29,
-    marginBottom: 14,
-  },
-  sectionTitle: {
-    color: "#1D1219",
-    fontSize: 23,
+
+  heroDescription: {
+    color: "#6D6469",
+    fontSize: 19,
     lineHeight: 29,
-    fontWeight: "900",
-  },
-  sectionDescription: {
-    marginTop: 5,
-    color: "#74636D",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  scopeGrid: {
-    gap: 12,
-  },
-  scopeCard: {
-    minHeight: 132,
-    borderWidth: 2,
-    borderColor: "#F0DDE7",
-    borderRadius: 22,
-    padding: 18,
-    backgroundColor: "#FFFFFF",
-  },
-  scopeCardSelected: {
-    borderColor: "#F72A94",
-    backgroundColor: "#FFF0F8",
-  },
-  scopeEmoji: {
-    fontSize: 27,
-  },
-  scopeTitle: {
-    marginTop: 10,
-    color: "#2A1B23",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  scopeTitleSelected: {
-    color: "#B3005A",
-  },
-  scopeDescription: {
-    marginTop: 5,
-    paddingRight: 72,
-    color: "#75636D",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  selectedPill: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: "#F72A94",
-  },
-  selectedPillText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  pressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.99 }],
-  },
-  privacyCard: {
-    marginTop: 14,
-    flexDirection: "row",
-    borderRadius: 18,
-    padding: 16,
-    backgroundColor: "#F0F7FF",
-  },
-  privacyIcon: {
-    fontSize: 22,
-  },
-  privacyContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  privacyTitle: {
-    color: "#193856",
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  privacyText: {
-    marginTop: 4,
-    color: "#4C6580",
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  explainerCard: {
-    marginTop: 20,
-    borderRadius: 22,
-    padding: 19,
-    backgroundColor: "#F4EBF0",
-  },
-  explainerEyebrow: {
-    color: "#9E0050",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-  },
-  explainerItem: {
-    marginTop: 12,
-    color: "#523D48",
-    fontSize: 14,
-    lineHeight: 21,
     fontWeight: "600",
-  },
-  coachingCard: {
     marginTop: 18,
+    marginBottom: 26,
+  },
+
+  recoveryCard: {
     borderWidth: 1,
-    borderColor: "#E7D5FF",
+    borderColor: "#E7D7DF",
+    backgroundColor: "#FFFFFF",
     borderRadius: 22,
-    padding: 18,
-    backgroundColor: "#F8F1FF",
+    padding: 20,
+    marginBottom: 26,
   },
-  coachingTitle: {
-    color: "#38204A",
-    fontSize: 17,
+
+  cardLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: "#B7AEB3",
+    marginRight: 10,
+  },
+
+  statusDotLive: {
+    backgroundColor: "#E60087",
+  },
+
+  cardLabel: {
+    color: "#776D72",
+    fontSize: 13,
     fontWeight: "900",
+    letterSpacing: 1.2,
   },
-  coachingText: {
-    marginTop: 9,
-    color: "#624D70",
-    fontSize: 14,
-    lineHeight: 21,
+
+  statusMessage: {
+    color: "#30282C",
+    fontSize: 17,
+    lineHeight: 25,
+    fontWeight: "700",
+    marginTop: 13,
   },
-  commitmentCard: {
+
+  loader: {
+    marginTop: 15,
+  },
+
+  resumeButton: {
+    backgroundColor: "#171014",
+    borderRadius: 16,
+    alignItems: "center",
+    paddingVertical: 16,
     marginTop: 18,
-    borderRadius: 20,
-    padding: 18,
-    backgroundColor: "#FFF1D8",
   },
-  commitmentTitle: {
-    color: "#523A13",
+
+  resumeButtonText: {
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "900",
   },
-  commitmentText: {
-    marginTop: 7,
-    color: "#735C35",
-    fontSize: 14,
-    lineHeight: 21,
+
+  sectionLabel: {
+    color: "#776D72",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    marginBottom: 13,
   },
-  startButton: {
-    marginTop: 24,
-    minHeight: 64,
+
+  scopeList: {
+    gap: 9,
+    marginBottom: 18,
+  },
+
+  scopeButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E6D7DF",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+
+  scopeButtonSelected: {
+    borderColor: "#E63DA1",
+    backgroundColor: "#FCE4F2",
+  },
+
+  scopeEmoji: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+
+  scopeEmojiSelected: {
+    opacity: 1,
+  },
+
+  scopeButtonText: {
+    color: "#70666B",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  scopeButtonTextSelected: {
+    color: "#B10C69",
+  },
+
+  startButton: {
+    minHeight: 76,
     borderRadius: 22,
-    paddingHorizontal: 22,
-    backgroundColor: "#F72A94",
+    backgroundColor: "#EA3EA6",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
-  startButtonDisabled: {
-    opacity: 0.62,
+
+  buttonPressed: {
+    opacity: 0.85,
   },
-  startButtonPressed: {
-    transform: [{ scale: 0.985 }],
+
+  buttonDisabled: {
+    opacity: 0.6,
   },
-  startButtonText: {
-    flex: 1,
+
+  startButtonTitle: {
     color: "#FFFFFF",
-    fontSize: 17,
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+
+  startButtonSubtitle: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+    opacity: 0.88,
+    marginTop: 3,
+  },
+
+  scopeNote: {
+    textAlign: "center",
+    color: "#887E83",
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 10,
+    marginBottom: 28,
+  },
+
+  waitingCard: {
+    backgroundColor: "#171014",
+    borderRadius: 26,
+    padding: 25,
+    alignItems: "center",
+    marginBottom: 28,
+  },
+
+  waitingLoader: {
+    marginBottom: 18,
+  },
+
+  waitingTitle: {
+    color: "#FFFFFF",
+    fontSize: 26,
     fontWeight: "900",
     textAlign: "center",
   },
-  startButtonArrow: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "700",
-  },
-  adDisclosure: {
-    marginTop: 14,
-    paddingHorizontal: 10,
-    color: "#8B7A84",
-    fontSize: 12,
-    lineHeight: 18,
+
+  waitingDescription: {
+    color: "#D4C9CF",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "600",
     textAlign: "center",
+    marginTop: 12,
+  },
+
+  waitingPulse: {
+    borderRadius: 999,
+    backgroundColor: "#34232D",
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    marginTop: 20,
+  },
+
+  waitingPulseText: {
+    color: "#FF76C8",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+
+  leaveButton: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#65525C",
+    borderRadius: 16,
+    alignItems: "center",
+    paddingVertical: 15,
+    marginTop: 20,
+  },
+
+  leaveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  matchmakingCard: {
+    backgroundColor: "#1B1016",
+    borderRadius: 26,
+    padding: 24,
+    marginBottom: 28,
+  },
+
+  matchmakingEyebrow: {
+    color: "#FF75C6",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+
+  matchmakingTitle: {
+    color: "#FFFFFF",
+    fontSize: 26,
+    lineHeight: 35,
+    fontWeight: "900",
+    marginTop: 14,
+  },
+
+  matchmakingDescription: {
+    color: "#D0C4CA",
+    fontSize: 16,
+    lineHeight: 25,
+    fontWeight: "600",
+    marginTop: 15,
+  },
+
+  howCard: {
+    borderWidth: 1,
+    borderColor: "#E8D9E1",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 26,
+    padding: 22,
+  },
+
+  howTitle: {
+    color: "#6F646A",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 1.1,
+    marginBottom: 22,
+  },
+
+  step: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 22,
+  },
+
+  stepNumber: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FCE3F2",
+    color: "#C9187D",
+    fontSize: 17,
+    lineHeight: 36,
+    fontWeight: "900",
+    textAlign: "center",
+    marginRight: 14,
+  },
+
+  stepCopy: {
+    flex: 1,
+  },
+
+  stepTitle: {
+    color: "#21181D",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  stepText: {
+    color: "#746A6F",
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+
+  bottomSpacer: {
+    height: 150,
   },
 });

@@ -328,7 +328,7 @@ export default function MessagesScreen() {
       <View style={styles.headerRow}>
         <View style={styles.headerTextWrap}>
           <Text style={styles.header}>Messages</Text>
-          <Text style={styles.subheader}>Matches, chats, and real connections</Text>
+          <Text style={styles.subheader}>Connections, chats, and conversations</Text>
         </View>
 
         <View style={styles.headerPills}>
@@ -407,7 +407,7 @@ export default function MessagesScreen() {
         <TextInput
           value={searchText}
           onChangeText={setSearchText}
-          placeholder="Search matches, messages, locations"
+          placeholder="Search connections, messages, locations"
           placeholderTextColor={BRAND.muted}
           style={styles.searchInput}
         />
@@ -439,7 +439,7 @@ export default function MessagesScreen() {
 
           <Text style={styles.emptyTitle}>No conversations yet</Text>
           <Text style={styles.emptyText}>
-            When you match with someone, your chat will show up here.
+            When you connect with someone, your chat will show up here.
           </Text>
 
           <Pressable
@@ -456,7 +456,7 @@ export default function MessagesScreen() {
               ? "No unread chats"
               : activeFilter === "requests"
                 ? "No message requests"
-                : "No matches found"}
+                : "No connections found"}
           </Text>
           <Text style={styles.emptyText}>
             {activeFilter === "unread"

@@ -923,7 +923,7 @@ export default function PremiumScreen() {
 
           <FeatureRow text="Reveal who liked you" />
           <FeatureRow text="Unlock Who Viewed You" />
-          <FeatureRow text="Open locked profiles from Matches" />
+          <FeatureRow text="Open locked profiles from Connections" />
           <FeatureRow text="1 free profile boost every week" />
           <FeatureRow text="Priority visibility tools" />
 

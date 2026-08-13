@@ -32,7 +32,7 @@ type LikeItem = {
   location: string;
 };
 
-type MatchItem = {
+type ConnectionItem = {
   matchId: string;
   userId: string;
   name: string;
@@ -41,7 +41,7 @@ type MatchItem = {
   matchedAt?: string | null;
 };
 
-type MatchRow = {
+type ConnectionRow = {
   id: string;
   user1_id: string;
   user2_id: string;
@@ -165,7 +165,7 @@ function PremiumPrompt({
   );
 }
 
-export default function MatchesScreen() {
+export default function ConnectionsScreen() {
   const router = useRouter();
   const { userId } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
@@ -176,7 +176,7 @@ export default function MatchesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [realMatches, setRealMatches] = useState<MatchItem[]>([]);
+  const [realConnections, setRealConnections] = useState<ConnectionItem[]>([]);
   const [likesYou, setLikesYou] = useState<LikeItem[]>([]);
   const [viewsYou, setViewsYou] = useState<ViewerItem[]>([]);
   const [isPremium, setIsPremium] = useState(false);
@@ -235,7 +235,7 @@ export default function MatchesScreen() {
       if (viewsError) throw viewsError;
       if (matchesError) throw matchesError;
 
-      const matchRows = (matches ?? []) as MatchRow[];
+      const matchRows = (matches ?? []) as ConnectionRow[];
 
       const matchedIds = matchRows.map((match) =>
         match.user1_id === userId ? match.user2_id : match.user1_id
@@ -273,7 +273,7 @@ export default function MatchesScreen() {
         );
       }
 
-      setRealMatches(
+      setRealConnections(
         matchRows.map((match) => {
           const otherId =
             match.user1_id === userId ? match.user2_id : match.user1_id;
@@ -317,7 +317,7 @@ export default function MatchesScreen() {
         })
       );
     } catch (error: any) {
-      Alert.alert("Error loading matches", error?.message ?? "Please try again.");
+      Alert.alert("Error loading connections", error?.message ?? "Please try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -386,8 +386,8 @@ export default function MatchesScreen() {
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{realMatches.length}</Text>
-          <Text style={styles.statLabel}>Matches</Text>
+          <Text style={styles.statNumber}>{realConnections.length}</Text>
+          <Text style={styles.statLabel}>Connections</Text>
         </View>
 
         <View style={styles.statCard}>
@@ -414,20 +414,20 @@ export default function MatchesScreen() {
       >
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Your Matches</Text>
+            <Text style={styles.sectionTitle}>Your Connections</Text>
             <Text style={styles.sectionSubtitle}>
-              {realMatches.length} mutual connections
+              {realConnections.length} mutual connections
             </Text>
           </View>
         </View>
 
-        {realMatches.length === 0 ? (
+        {realConnections.length === 0 ? (
           <EmptyCard
-            title="No matches yet"
+            title="No connections yet"
             text="When you and another person like each other, they will appear here."
           />
         ) : (
-          realMatches.map((item) => (
+          realConnections.map((item) => (
             <View
               key={item.matchId}
               style={[
@@ -449,7 +449,7 @@ export default function MatchesScreen() {
                     {item.location || "PolyOpen member"}
                   </Text>
                   <Text style={styles.lockHint}>
-                    Matched {formatTimeAgo(item.matchedAt)}
+                    Connected {formatTimeAgo(item.matchedAt)}
                   </Text>
                 </View>
               </Pressable>
@@ -572,7 +572,7 @@ export default function MatchesScreen() {
         {viewsYou.length === 0 ? (
           <EmptyCard
             title="No views yet"
-            text="Views appear here when people open your profile from Feed, Swipe, or Matches."
+            text="Views appear here when people open your profile from Feed, Speed Date, or Connections."
           />
         ) : (
           viewsYou.map((item) => (
