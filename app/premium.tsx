@@ -917,11 +917,12 @@ export default function PremiumScreen() {
           <Text style={styles.planSub}>/ month</Text>
 
           <Text style={styles.planText}>
-            Unlock deeper discovery tools and see more of the activity happening
+            Reveal Secret Admirers, unlock deeper discovery tools, and see more of the activity happening
             around your profile.
           </Text>
 
           <FeatureRow text="Reveal who liked you" />
+          <FeatureRow text="Reveal Secret Admirers" />
           <FeatureRow text="Unlock Who Viewed You" />
           <FeatureRow text="Open locked profiles from Connections" />
           <FeatureRow text="1 free profile boost every week" />

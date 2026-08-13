@@ -25,7 +25,14 @@ type ViewerItem = {
   viewedAt?: string | null;
 };
 
-type LikeItem = {
+type SecretAdmirerRpcRow = {
+  secret_admirer_id: string;
+  admirer_id: string | null;
+  created_at: string | null;
+  identity_unlocked: boolean;
+};
+
+type SecretAdmirerItem = {
   id: string;
   name: string;
   image: string | null;
@@ -177,14 +184,14 @@ export default function ConnectionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const [realConnections, setRealConnections] = useState<ConnectionItem[]>([]);
-  const [likesYou, setLikesYou] = useState<LikeItem[]>([]);
+  const [secretAdmirers, setSecretAdmirers] = useState<SecretAdmirerItem[]>([]);
   const [viewsYou, setViewsYou] = useState<ViewerItem[]>([]);
   const [isPremium, setIsPremium] = useState(false);
 
   const hiddenAttentionCount = useMemo(() => {
     if (isPremium) return 0;
-    return likesYou.length + viewsYou.length;
-  }, [isPremium, likesYou.length, viewsYou.length]);
+    return secretAdmirers.length + viewsYou.length;
+  }, [isPremium, secretAdmirers.length, viewsYou.length]);
 
   const loadData = useCallback(async () => {
     if (!userId) {
@@ -214,11 +221,11 @@ export default function ConnectionsScreen() {
       setIsPremium(premiumActive);
 
       const [
-        { data: likes, error: likesError },
+        { data: admirers, error: admirersError },
         { data: views, error: viewsError },
         { data: matches, error: matchesError },
       ] = await Promise.all([
-        supabase.from("likes").select("liker_id").eq("liked_id", userId),
+        supabase.rpc("get_my_secret_admirers"),
         supabase
           .from("profile_views")
           .select("viewer_id, created_at")
@@ -231,7 +238,7 @@ export default function ConnectionsScreen() {
           .order("created_at", { ascending: false }),
       ]);
 
-      if (likesError) throw likesError;
+      if (admirersError) throw admirersError;
       if (viewsError) throw viewsError;
       if (matchesError) throw matchesError;
 
@@ -241,8 +248,19 @@ export default function ConnectionsScreen() {
         match.user1_id === userId ? match.user2_id : match.user1_id
       );
 
-      const likeIds = [
-        ...new Set((likes ?? []).map((like) => like.liker_id).filter(Boolean)),
+      const admirerRows =
+        (admirers ?? []) as SecretAdmirerRpcRow[];
+
+      const admirerProfileIds = [
+        ...new Set(
+          admirerRows
+            .map((admirer) => admirer.admirer_id)
+            .filter(
+              (id): id is string =>
+                typeof id === "string" &&
+                id.length > 0
+            )
+        ),
       ];
 
       const newestViewByUser = new Map<string, string | null>();
@@ -254,7 +272,7 @@ export default function ConnectionsScreen() {
       }
 
       const viewIds = [...newestViewByUser.keys()];
-      const allProfileIds = [...new Set([...matchedIds, ...likeIds, ...viewIds])];
+      const allProfileIds = [...new Set([...matchedIds, ...admirerProfileIds, ...viewIds])];
 
       let profilesMap = new Map<string, any>();
 
@@ -290,15 +308,29 @@ export default function ConnectionsScreen() {
         })
       );
 
-      setLikesYou(
-        likeIds.map((id) => {
-          const profile = profilesMap.get(id);
+      setSecretAdmirers(
+        admirerRows.map((admirer) => {
+          const profile =
+            admirer.admirer_id
+              ? profilesMap.get(
+                  admirer.admirer_id
+                )
+              : undefined;
 
           return {
-            id,
-            name: profile?.display_name || profile?.username || "Someone",
-            image: profile?.profile_photo_url || profile?.avatar_url || null,
-            location: [profile?.city, profile?.state].filter(Boolean).join(", "),
+            id:
+              admirer.admirer_id ??
+              admirer.secret_admirer_id,
+            name:
+              profile?.display_name ??
+              profile?.full_name ??
+              "Secret Admirer",
+            image:
+              profile?.avatar_url ??
+              profile?.image_url ??
+              null,
+            location:
+              profile?.location ?? "",
           };
         })
       );
@@ -375,7 +407,7 @@ export default function ConnectionsScreen() {
             {hiddenAttentionCount} people are already watching you
           </Text>
           <Text style={styles.conversionText}>
-            Unlock Likes You and Who Viewed You to see exactly who is showing interest.
+            Unlock Secret Admirers and Who Viewed You to see exactly who is showing interest.
           </Text>
 
           <Pressable onPress={openPremium} style={styles.conversionButton}>
@@ -391,8 +423,8 @@ export default function ConnectionsScreen() {
         </View>
 
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{likesYou.length}</Text>
-          <Text style={styles.statLabel}>Likes You</Text>
+          <Text style={styles.statNumber}>{secretAdmirers.length}</Text>
+          <Text style={styles.statLabel}>Secret Admirers</Text>
         </View>
 
         <View style={styles.statCard}>
@@ -478,8 +510,8 @@ export default function ConnectionsScreen() {
       >
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Likes You</Text>
-            <Text style={styles.sectionSubtitle}>{likesYou.length} interested</Text>
+            <Text style={styles.sectionTitle}>Secret Admirers</Text>
+            <Text style={styles.sectionSubtitle}>{secretAdmirers.length} interested</Text>
           </View>
 
           {!isPremium ? (
@@ -489,22 +521,22 @@ export default function ConnectionsScreen() {
           ) : null}
         </View>
 
-        {!isPremium && likesYou.length > 0 ? (
+        {!isPremium && secretAdmirers.length > 0 ? (
           <PremiumPrompt
-            title="Someone already likes you"
-            text="Reveal locked likes and jump straight into people who are already interested."
-            buttonText="Unlock Likes"
+            title="You have a Secret Admirer"
+            text="Reveal who sent you a Secret Admirer and discover who is interested."
+            buttonText="Reveal Admirers"
             onPress={openPremium}
           />
         ) : null}
 
-        {likesYou.length === 0 ? (
+        {secretAdmirers.length === 0 ? (
           <EmptyCard
             title="No likes yet"
             text="Keep swiping and improving your profile. Likes will show up here."
           />
         ) : (
-          likesYou.map((item) => (
+          secretAdmirers.map((item) => (
             <Pressable
               key={item.id}
               onPress={() => openProfile(item.id, !isPremium)}
@@ -527,7 +559,7 @@ export default function ConnectionsScreen() {
                   {isPremium ? item.location || "PolyOpen member" : "Upgrade to reveal"}
                 </Text>
 
-                <Text style={styles.lockHint}>Liked your profile</Text>
+                <Text style={styles.lockHint}>Sent you a Secret Admirer</Text>
               </View>
 
               <Text style={styles.chevron}>{isPremium ? "›" : "🔒"}</Text>
@@ -613,7 +645,7 @@ export default function ConnectionsScreen() {
         <Pressable onPress={openPremium} style={styles.bottomUpgradeCard}>
           <Text style={styles.bottomUpgradeTitle}>Unlock your hidden attention</Text>
           <Text style={styles.bottomUpgradeText}>
-            Premium reveals likes, profile views, and priority visibility tools.
+            Premium reveals Secret Admirers, profile views, and priority visibility tools.
           </Text>
           <View style={styles.bottomUpgradeButton}>
             <Text style={styles.bottomUpgradeButtonText}>Go Premium</Text>

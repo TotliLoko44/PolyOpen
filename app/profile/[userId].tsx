@@ -16,7 +16,6 @@ import { useAuth } from "../../lib/auth";
 import { BRAND } from "../../lib/brand";
 import {
   createFollowNotification,
-  createMatchNotification,
   createProfileViewNotification,
   getProfileDisplayName,
 } from "../../lib/notifications";
@@ -53,10 +52,6 @@ type Media = {
   media_url: string | null;
 };
 
-type MatchResult = {
-  matchId: string | null;
-  createdNewMatch: boolean;
-};
 
 const POLYOPEN_LOGO = require("../../assets/images/polyopen-logo.png");
 
@@ -193,6 +188,7 @@ export default function PublicProfileScreen() {
   const [media, setMedia] = useState<Media[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [secretAdmirerLoading, setSecretAdmirerLoading] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
@@ -424,134 +420,56 @@ export default function PublicProfileScreen() {
       console.log("PROFILE VIEW TRACK ERROR:", error);
     }
   }
-
-  async function getExistingMatchId(currentUserId: string, targetUserId: string) {
-    const ids = [currentUserId, targetUserId].sort();
-
-    const { data, error } = await supabase
-      .from("matches")
-      .select("id")
-      .or(
-        `and(user1_id.eq.${ids[0]},user2_id.eq.${ids[1]}),and(user1_id.eq.${ids[1]},user2_id.eq.${ids[0]})`
-      )
-      .maybeSingle();
-
-    if (error) throw error;
-
-    return data?.id ?? null;
-  }
-
-  async function createMatchIfMutualLike(
-    currentUserId: string,
-    targetUserId: string
-  ): Promise<MatchResult> {
-    const existingMatchId = await getExistingMatchId(currentUserId, targetUserId);
-
-    if (existingMatchId) {
-      return {
-        matchId: existingMatchId,
-        createdNewMatch: false,
-      };
-    }
-
-    const [{ data: myLike, error: myLikeError }, { data: theirLike, error: theirLikeError }] =
-      await Promise.all([
-        supabase
-          .from("likes")
-          .select("id")
-          .eq("liker_id", currentUserId)
-          .eq("liked_id", targetUserId)
-          .maybeSingle(),
-        supabase
-          .from("likes")
-          .select("id")
-          .eq("liker_id", targetUserId)
-          .eq("liked_id", currentUserId)
-          .maybeSingle(),
-      ]);
-
-    if (myLikeError) throw myLikeError;
-    if (theirLikeError) throw theirLikeError;
-
-    if (!myLike || !theirLike) {
-      return {
-        matchId: null,
-        createdNewMatch: false,
-      };
-    }
-
-    const ids = [currentUserId, targetUserId].sort();
-
-    const { data: newMatch, error: createError } = await supabase
-      .from("matches")
-      .insert({
-        user1_id: ids[0],
-        user2_id: ids[1],
-      })
-      .select("id")
-      .maybeSingle();
-
-    if (createError) throw createError;
-
-    return {
-      matchId: newMatch?.id ?? null,
-      createdNewMatch: true,
-    };
-  }
-
-  async function sendMatchNotifications(matchId: string, targetUserId: string) {
-    if (!myUserId) return;
-
-    try {
-      const myName = await getProfileDisplayName(myUserId);
-      const targetName = await getProfileDisplayName(targetUserId);
-
-      await createMatchNotification({
-        userId: myUserId,
-        matchedUserId: targetUserId,
-        matchedUserName: targetName,
-        matchId,
-      });
-
-      await createMatchNotification({
-        userId: targetUserId,
-        matchedUserId: myUserId,
-        matchedUserName: myName,
-        matchId,
-      });
-    } catch (notificationError) {
-      console.log("PROFILE MATCH NOTIFICATION ERROR:", notificationError);
-    }
-  }
-
-  async function handleMessage() {
+async function handleMessage() {
     if (!myUserId || !profileId || myUserId === profileId || messageLoading) {
       return;
     }
 
     try {
       setMessageLoading(true);
-
-      const { matchId, createdNewMatch } = await createMatchIfMutualLike(myUserId, profileId);
-
-      if (!matchId) {
-        Alert.alert(
-          "Match required",
-          "You can message once both people like each other."
-        );
-        return;
-      }
-
-      if (createdNewMatch) {
-        await sendMatchNotifications(matchId, profileId);
-      }
-
-      router.push(`/chat/${matchId}` as any);
-    } catch (error: any) {
+} catch (error: any) {
       console.log("MESSAGE ROUTE ERROR:", error);
       Alert.alert("Chat unavailable", error?.message ?? "Could not open conversation.");
     } finally {
       setMessageLoading(false);
+    }
+  }
+
+
+  async function sendSecretAdmirer() {
+    if (!myUserId || !profileId || secretAdmirerLoading) {
+      return;
+    }
+
+    try {
+      setSecretAdmirerLoading(true);
+
+      const { error } = await supabase.rpc(
+        "send_secret_admirer",
+        {
+          target_user_id: profileId,
+        }
+      );
+
+      if (error) throw error;
+
+      Alert.alert(
+        "Secret Admirer 💘",
+        "Sent privately. They’ll know someone is interested, but Premium is required to reveal who."
+      );
+    } catch (error: any) {
+      console.log(
+        "SECRET ADMIRER SEND ERROR:",
+        error
+      );
+
+      Alert.alert(
+        "Secret Admirer",
+        error?.message ??
+          "PolyOpen could not send your Secret Admirer right now."
+      );
+    } finally {
+      setSecretAdmirerLoading(false);
     }
   }
 
@@ -815,6 +733,24 @@ export default function PublicProfileScreen() {
                             {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
                           </Text>
                         </Pressable>
+
+                    <Pressable
+                      onPress={sendSecretAdmirer}
+                      disabled={secretAdmirerLoading}
+                      style={[
+                        styles.secretAdmirerButton,
+                        secretAdmirerLoading
+                          ? { opacity: 0.6 }
+                          : null,
+                      ]}
+                    >
+                      <Text style={styles.secretAdmirerButtonText}>
+                        {secretAdmirerLoading
+                          ? "Sending..."
+                          : "💘 Secret Admirer"}
+                      </Text>
+                    </Pressable>
+
 
                         <Pressable
                           onPress={handleBlockUser}
@@ -1432,4 +1368,23 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "900",
   },
+  secretAdmirerButton: {
+    minHeight: 46,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: "#FCE3F2",
+    borderWidth: 1,
+    borderColor: "#E63DA1",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+
+  secretAdmirerButtonText: {
+    color: "#A90D67",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
 });
