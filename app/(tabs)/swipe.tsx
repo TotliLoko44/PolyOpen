@@ -640,7 +640,7 @@ export default function SpeedDatingLobbyScreen() {
                 styles.waitingDescription
               }
             >
-              You're live in the queue.
+              You&apos;re live in the queue.
               PolyOpen will automatically
               open the date when another
               available member joins.
