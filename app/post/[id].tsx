@@ -1,10 +1,8 @@
-import { ResizeMode, Video } from "expo-av";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   Modal,
   Pressable,
@@ -20,6 +18,7 @@ import { useAuth } from "../../lib/auth";
 import { BRAND } from "../../lib/brand";
 import { deletePost, likePost } from "../../lib/social";
 import { supabase } from "../../lib/supabase";
+import { PostMediaVideo } from "../../components/PostMediaVideo";
 
 type PostRow = {
   id: string;
@@ -56,9 +55,6 @@ type LikedUserRow = {
 type ReturnTarget = "feed" | "profile" | "browse" | "swipe";
 
 const POLYOPEN_LOGO = require("../../assets/images/polyopen-logo.png");
-
-const SCREEN_HEIGHT = Dimensions.get("window").height;
-const DETAIL_MEDIA_HEIGHT = Math.min(300, Math.max(220, SCREEN_HEIGHT * 0.34));
 
 function formatDate(value?: string | null) {
   if (!value) return "";
@@ -453,19 +449,17 @@ export default function PostDetailScreen() {
                       onPress={() => openViewer(index)}
                       style={[
                         styles.mediaWrap,
+                        {
+                          aspectRatio:
+                            typeof document !== "undefined" && isVideo
+                              ? 4 / 5
+                              : 4 / 3,
+                        },
                         index === media.length - 1 ? styles.lastMediaWrap : null,
                       ]}
                     >
                       {isVideo ? (
-                        <Video
-                          source={{ uri: item.media_url }}
-                          style={styles.media}
-                          useNativeControls={false}
-                          resizeMode={ResizeMode.CONTAIN}
-                          shouldPlay
-                          isMuted
-                          isLooping
-                        />
+                        <PostMediaVideo uri={item.media_url} />
                       ) : (
                         <Image
                           source={{ uri: item.media_url }}
@@ -579,13 +573,11 @@ export default function PostDetailScreen() {
           <View style={styles.viewerBody}>
             {media[viewerIndex] ? (
               media[viewerIndex].media_type === "video" ? (
-                <Video
-                  source={{ uri: media[viewerIndex].media_url }}
-                  style={styles.viewerMedia}
-                  resizeMode={ResizeMode.CONTAIN}
-                  shouldPlay
-                  useNativeControls
-                  isLooping={false}
+                <PostMediaVideo
+                  uri={media[viewerIndex].media_url}
+                  controls
+                  muted={false}
+                  loop={false}
                 />
               ) : (
                 <Image
@@ -785,6 +777,9 @@ const styles = StyleSheet.create({
   },
 
   card: {
+    width: "100%",
+    maxWidth: 600,
+    alignSelf: "center",
     backgroundColor: "#FFFFFFF7",
     borderWidth: 1.5,
     borderColor: BRAND.border,
@@ -866,6 +861,8 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     overflow: "hidden",
     backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   lastMediaWrap: {
@@ -874,7 +871,8 @@ const styles = StyleSheet.create({
 
   media: {
     width: "100%",
-    height: DETAIL_MEDIA_HEIGHT,
+    height: "100%",
+    alignSelf: "center",
     backgroundColor: "#000",
   },
 

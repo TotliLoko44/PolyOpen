@@ -578,13 +578,13 @@ const styles = StyleSheet.create({
   },
 
   contentDesktop: {
-    maxWidth: 900,
-    paddingHorizontal: 28,
+    maxWidth: 660,
+    paddingHorizontal: 24,
     paddingTop: 24,
   },
 
   contentWideDesktop: {
-    maxWidth: 960,
+    maxWidth: 700,
     paddingHorizontal: 34,
     paddingTop: 30,
   },

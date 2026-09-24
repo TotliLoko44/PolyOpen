@@ -80,7 +80,7 @@ export default function Login() {
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
-      style={{ flex: 1, backgroundColor: "#FFFFFF" }}
+      style={{ flex: 1, backgroundColor: Platform.OS === "web" ? "#F5F5F7" : "#FFFFFF" }}
     >
       <ScrollView
         style={{ flex: 1 }}
@@ -89,11 +89,12 @@ export default function Login() {
           paddingHorizontal: 24,
           paddingTop: 42,
           paddingBottom: 40,
+            alignItems: "center",
           justifyContent: "center",
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ marginBottom: 32, alignItems: "center" }}>
+        <View style={{ width: "100%", maxWidth: 460, marginBottom: 24, alignItems: "center" }}>
           <Image
             source={require("../assets/images/polyopen-logo.png")}
             style={{
@@ -106,14 +107,14 @@ export default function Login() {
 
           <Text
             style={{
-              fontSize: 30,
+              fontSize: Platform.OS === "web" ? 24 : 30,
               fontWeight: "900",
               color: "#111",
               marginBottom: 6,
               textAlign: "center",
             }}
           >
-            Ethical love~Open spirituality
+            Ethical Love~Open Spirituality
           </Text>
 
           <Text
@@ -127,7 +128,7 @@ export default function Login() {
           </Text>
         </View>
 
-        <View style={{ gap: 12 }}>
+        <View style={{ width: "100%", maxWidth: 460, gap: 12, backgroundColor: "#FFFFFF", borderWidth: Platform.OS === "web" ? 1 : 0, borderColor: "#E5E7EB", borderRadius: Platform.OS === "web" ? 24 : 0, padding: Platform.OS === "web" ? 24 : 0 }}>
           <TextInput
             value={email}
             onChangeText={setEmail}

@@ -22,8 +22,6 @@ if (typeof (globalThis as any).DOMException === "undefined") {
   (globalThis as any).DOMException = PolyfilledDOMException;
 }
 
-const { registerGlobals } = require("@livekit/react-native");
-registerGlobals();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

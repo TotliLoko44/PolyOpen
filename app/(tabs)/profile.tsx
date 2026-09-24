@@ -1,4 +1,3 @@
-import { ResizeMode, Video } from "expo-av";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -17,6 +16,7 @@ import { BRAND } from "../../lib/brand";
 import { listProfileMedia, type ProfileMediaItem } from "../../lib/profile";
 import { deletePost, getPostsForProfile } from "../../lib/social";
 import { supabase } from "../../lib/supabase";
+import { PostMediaVideo } from "../../components/PostMediaVideo";
 
 const POLYOPEN_LOGO = require("../../assets/images/polyopen-logo.png");
 
@@ -165,13 +165,7 @@ function InfoPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AboutRow({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | null;
-}) {
+function AboutRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
 
   return (
@@ -204,8 +198,14 @@ export default function ProfileScreen() {
         { data: followerRows, error: followerError },
         { data: followingRows, error: followingError },
       ] = await Promise.all([
-        supabase.from("follows").select("follower_id").eq("following_id", currentUserId),
-        supabase.from("follows").select("following_id").eq("follower_id", currentUserId),
+        supabase
+          .from("follows")
+          .select("follower_id")
+          .eq("following_id", currentUserId),
+        supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", currentUserId),
       ]);
 
       if (followerError) throw followerError;
@@ -215,16 +215,16 @@ export default function ProfileScreen() {
         new Set(
           ((followerRows ?? []) as { follower_id?: string | null }[])
             .map((row) => row.follower_id)
-            .filter(Boolean) as string[]
-        )
+            .filter(Boolean) as string[],
+        ),
       );
 
       const followingIds = Array.from(
         new Set(
           ((followingRows ?? []) as { following_id?: string | null }[])
             .map((row) => row.following_id)
-            .filter(Boolean) as string[]
-        )
+            .filter(Boolean) as string[],
+        ),
       );
 
       const [
@@ -234,13 +234,17 @@ export default function ProfileScreen() {
         followerIds.length
           ? supabase
               .from("profiles")
-              .select("id, display_name, username, profile_photo_url, avatar_url, city, state")
+              .select(
+                "id, display_name, username, profile_photo_url, avatar_url, city, state",
+              )
               .in("id", followerIds)
           : Promise.resolve({ data: [], error: null } as any),
         followingIds.length
           ? supabase
               .from("profiles")
-              .select("id, display_name, username, profile_photo_url, avatar_url, city, state")
+              .select(
+                "id, display_name, username, profile_photo_url, avatar_url, city, state",
+              )
               .in("id", followingIds)
           : Promise.resolve({ data: [], error: null } as any),
       ]);
@@ -276,7 +280,7 @@ export default function ProfileScreen() {
           supabase
             .from("profiles")
             .select(
-              "id, display_name, username, profile_photo_url, avatar_url, cover_photo_url, bio, city, state, orientation, relationship_style, relationship_styles, spiritual_path, spiritual_paths, likes_text, hobbies, western_zodiac, aztec_zodiac, chinese_zodiac, numerology_life_path, birth_year, boost_active, boost_started_at, boost_expires_at, is_premium, is_verified, verification_tier, verification_status, verification_submitted_at, verification_approved_at"
+              "id, display_name, username, profile_photo_url, avatar_url, cover_photo_url, bio, city, state, orientation, relationship_style, relationship_styles, spiritual_path, spiritual_paths, likes_text, hobbies, western_zodiac, aztec_zodiac, chinese_zodiac, numerology_life_path, birth_year, boost_active, boost_started_at, boost_expires_at, is_premium, is_verified, verification_tier, verification_status, verification_submitted_at, verification_approved_at",
             )
             .eq("id", userId)
             .maybeSingle(),
@@ -325,25 +329,32 @@ export default function ProfileScreen() {
   }, [userId]);
 
   const avatarUrl = profile?.profile_photo_url || profile?.avatar_url || null;
-  const displayName = profile?.display_name || profile?.username || "Your Profile";
-  const locationText = [profile?.city, profile?.state].filter(Boolean).join(", ");
+  const displayName =
+    profile?.display_name || profile?.username || "Your Profile";
+  const locationText = [profile?.city, profile?.state]
+    .filter(Boolean)
+    .join(", ");
   const age = useMemo(() => getAge(profile?.birth_year), [profile?.birth_year]);
   const isGoldVerified = Boolean(profile?.is_verified);
 
   const relationshipText = useMemo(() => {
-    if (profile?.relationship_styles?.length) return profile.relationship_styles.join(" • ");
+    if (profile?.relationship_styles?.length)
+      return profile.relationship_styles.join(" • ");
     return profile?.relationship_style || "";
   }, [profile]);
 
   const spiritualText = useMemo(() => {
-    if (profile?.spiritual_paths?.length) return profile.spiritual_paths.join(" • ");
+    if (profile?.spiritual_paths?.length)
+      return profile.spiritual_paths.join(" • ");
     return profile?.spiritual_path || "";
   }, [profile]);
 
   const westernZodiacLabel = useMemo(() => {
     if (!profile?.western_zodiac) return "";
     const symbol = getWesternZodiacSymbol(profile.western_zodiac);
-    return symbol ? `${symbol} ${profile.western_zodiac}` : profile.western_zodiac;
+    return symbol
+      ? `${symbol} ${profile.western_zodiac}`
+      : profile.western_zodiac;
   }, [profile?.western_zodiac]);
 
   const aztecZodiacLabel = useMemo(() => {
@@ -354,7 +365,9 @@ export default function ProfileScreen() {
   const chineseZodiacLabel = useMemo(() => {
     if (!profile?.chinese_zodiac) return "";
     const symbol = getChineseZodiacSymbol(profile.chinese_zodiac);
-    return symbol ? `${symbol} ${profile.chinese_zodiac}` : profile.chinese_zodiac;
+    return symbol
+      ? `${symbol} ${profile.chinese_zodiac}`
+      : profile.chinese_zodiac;
   }, [profile?.chinese_zodiac]);
 
   return (
@@ -371,7 +384,10 @@ export default function ProfileScreen() {
           <Text style={styles.premiumButtonText}>Premium</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push("/wallet" as any)} style={styles.walletButton}>
+        <Pressable
+          onPress={() => router.push("/wallet" as any)}
+          style={styles.walletButton}
+        >
           <Text style={styles.walletButtonText}>Wallet</Text>
         </Pressable>
 
@@ -382,19 +398,28 @@ export default function ProfileScreen() {
           <Text style={styles.settingsButtonText}>Settings</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push("/profile/edit")} style={styles.editButton}>
+        <Pressable
+          onPress={() => router.push("/profile/edit")}
+          style={styles.editButton}
+        >
           <Text style={styles.editButtonText}>Edit</Text>
         </Pressable>
       </View>
 
-      <View style={[
-styles.heroCard,
-isDesktopWeb && styles.heroDesktop,
-isWideDesktopWeb && styles.heroWideDesktop,
-]}>
+      <View
+        style={[
+          styles.heroCard,
+          isDesktopWeb && styles.heroDesktop,
+          isWideDesktopWeb && styles.heroWideDesktop,
+        ]}
+      >
         <View style={styles.cover}>
           {profile?.cover_photo_url ? (
-            <Image source={{ uri: profile.cover_photo_url }} style={styles.coverImage} resizeMode="cover" />
+            <Image
+              source={{ uri: profile.cover_photo_url }}
+              style={styles.coverImage}
+              resizeMode={typeof document !== "undefined" ? "contain" : "cover"}
+            />
           ) : null}
         </View>
 
@@ -407,10 +432,20 @@ isWideDesktopWeb && styles.heroWideDesktop,
             ]}
           >
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatar} resizeMode="cover" />
+              <Image
+                source={{ uri: avatarUrl }}
+                style={styles.avatar}
+                resizeMode={
+                  typeof document !== "undefined" ? "contain" : "cover"
+                }
+              />
             ) : (
               <View style={styles.avatarFallback}>
-                <Image source={POLYOPEN_LOGO} style={styles.avatarFallbackLogo} resizeMode="contain" />
+                <Image
+                  source={POLYOPEN_LOGO}
+                  style={styles.avatarFallbackLogo}
+                  resizeMode="contain"
+                />
               </View>
             )}
 
@@ -440,7 +475,9 @@ isWideDesktopWeb && styles.heroWideDesktop,
             ) : null}
           </View>
 
-          {!!locationText ? <Text style={styles.locationText}>{locationText}</Text> : null}
+          {!!locationText ? (
+            <Text style={styles.locationText}>{locationText}</Text>
+          ) : null}
 
           <View style={styles.followStatsRow}>
             <Pressable
@@ -471,43 +508,65 @@ isWideDesktopWeb && styles.heroWideDesktop,
           </View>
 
           <View style={styles.tagRow}>
-            {isGoldVerified ? <Text style={styles.goldTag}>★ {getVerificationLabel(profile)}</Text> : null}
-            {!!westernZodiacLabel && <Text style={styles.tag}>{westernZodiacLabel}</Text>}
-            {!!aztecZodiacLabel && <Text style={styles.tag}>{aztecZodiacLabel}</Text>}
-            {!!chineseZodiacLabel && <Text style={styles.tag}>{chineseZodiacLabel}</Text>}
+            {isGoldVerified ? (
+              <Text style={styles.goldTag}>
+                ★ {getVerificationLabel(profile)}
+              </Text>
+            ) : null}
+            {!!westernZodiacLabel && (
+              <Text style={styles.tag}>{westernZodiacLabel}</Text>
+            )}
+            {!!aztecZodiacLabel && (
+              <Text style={styles.tag}>{aztecZodiacLabel}</Text>
+            )}
+            {!!chineseZodiacLabel && (
+              <Text style={styles.tag}>{chineseZodiacLabel}</Text>
+            )}
             {profile?.numerology_life_path ? (
-              <Text style={styles.tag}>🔢 Life Path {profile.numerology_life_path}</Text>
+              <Text style={styles.tag}>
+                🔢 Life Path {profile.numerology_life_path}
+              </Text>
             ) : null}
           </View>
 
-          {!!relationshipText ? <Text style={styles.relationshipText}>{relationshipText}</Text> : null}
-          {!!spiritualText ? <Text style={styles.spiritualText}>✨ {spiritualText}</Text> : null}
-          {!!profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+          {!!relationshipText ? (
+            <Text style={styles.relationshipText}>{relationshipText}</Text>
+          ) : null}
+          {!!spiritualText ? (
+            <Text style={styles.spiritualText}>✨ {spiritualText}</Text>
+          ) : null}
+          {!!profile?.bio ? (
+            <Text style={styles.bio}>{profile.bio}</Text>
+          ) : null}
 
-          <Pressable onPress={() => router.push("/profile/edit")} style={styles.editPublicButton}>
+          <Pressable
+            onPress={() => router.push("/profile/edit")}
+            style={styles.editPublicButton}
+          >
             <Text style={styles.editPublicButtonText}>Edit Public Profile</Text>
           </Pressable>
         </View>
       </View>
 
-      <View style={[
-styles.sectionCard,
-isDesktopWeb && styles.sectionDesktop,
-]}>
+      <View style={[styles.sectionCard, isDesktopWeb && styles.sectionDesktop]}>
         <Text style={styles.sectionTitle}>Details</Text>
         <View style={styles.infoWrap}>
-          {!!relationshipText && <InfoPill label="Style" value={relationshipText} />}
-          {!!profile?.orientation && <InfoPill label="Orientation" value={profile.orientation} />}
+          {!!relationshipText && (
+            <InfoPill label="Style" value={relationshipText} />
+          )}
+          {!!profile?.orientation && (
+            <InfoPill label="Orientation" value={profile.orientation} />
+          )}
           {!!spiritualText && <InfoPill label="Path" value={spiritualText} />}
           {!!locationText && <InfoPill label="Location" value={locationText} />}
-          <InfoPill label="Verification" value={getVerificationLabel(profile)} />
+          <InfoPill
+            label="Verification"
+            value={getVerificationLabel(profile)}
+          />
         </View>
       </View>
 
-      <View style={[
-styles.sectionCard,
-isDesktopWeb && styles.sectionDesktop,
-]}>
+      <View style={[styles.sectionCard, isDesktopWeb && styles.sectionDesktop]}>
         <Text style={styles.sectionTitle}>About</Text>
         <AboutRow label="Username" value={profile?.username || ""} />
         <AboutRow label="City" value={profile?.city || ""} />
@@ -516,19 +575,35 @@ isDesktopWeb && styles.sectionDesktop,
         <AboutRow label="Relationship Style" value={relationshipText} />
         <AboutRow label="Spiritual Path" value={spiritualText} />
         <AboutRow label="Likes" value={profile?.likes_text || ""} />
-        <AboutRow label="Hobbies" value={profile?.hobbies?.length ? profile.hobbies.join(", ") : ""} />
-        <AboutRow label="Western Zodiac" value={profile?.western_zodiac || ""} />
+        <AboutRow
+          label="Hobbies"
+          value={profile?.hobbies?.length ? profile.hobbies.join(", ") : ""}
+        />
+        <AboutRow
+          label="Western Zodiac"
+          value={profile?.western_zodiac || ""}
+        />
         <AboutRow label="Aztec Zodiac" value={profile?.aztec_zodiac || ""} />
-        <AboutRow label="Chinese Zodiac" value={profile?.chinese_zodiac || ""} />
-        <AboutRow label="Life Path" value={profile?.numerology_life_path ? String(profile.numerology_life_path) : ""} />
-        <AboutRow label="Premium" value={profile?.is_premium ? "Active" : "Not active"} />
+        <AboutRow
+          label="Chinese Zodiac"
+          value={profile?.chinese_zodiac || ""}
+        />
+        <AboutRow
+          label="Life Path"
+          value={
+            profile?.numerology_life_path
+              ? String(profile.numerology_life_path)
+              : ""
+          }
+        />
+        <AboutRow
+          label="Premium"
+          value={profile?.is_premium ? "Active" : "Not active"}
+        />
         <AboutRow label="Verification" value={getVerificationLabel(profile)} />
       </View>
 
-      <View style={[
-styles.sectionCard,
-isDesktopWeb && styles.sectionDesktop,
-]}>
+      <View style={[styles.sectionCard, isDesktopWeb && styles.sectionDesktop]}>
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Public Photos</Text>
           <Pressable onPress={openProfileGallery}>
@@ -539,20 +614,35 @@ isDesktopWeb && styles.sectionDesktop,
         {publicPhotos.length === 0 ? (
           <View style={styles.emptyPhotoCard}>
             <Text style={styles.emptyPhotoTitle}>No public photos yet</Text>
-            <Text style={styles.emptyPhotoText}>Add public profile photos from your gallery.</Text>
+            <Text style={styles.emptyPhotoText}>
+              Add public profile photos from your gallery.
+            </Text>
           </View>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoScrollContent}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photoScrollContent}
+          >
             {publicPhotos.map((item) => (
               <Pressable key={item.id} onPress={openProfileGallery}>
-                <Image source={{ uri: item.media_url }} style={styles.publicPhoto} resizeMode="cover" />
+                <Image
+                  source={{ uri: item.media_url }}
+                  style={styles.publicPhoto}
+                  resizeMode={
+                    typeof document !== "undefined" ? "contain" : "cover"
+                  }
+                />
               </Pressable>
             ))}
           </ScrollView>
         )}
       </View>
 
-      <Pressable onPress={() => router.push("/create-post")} style={styles.createPostButton}>
+      <Pressable
+        onPress={() => router.push("/create-post")}
+        style={styles.createPostButton}
+      >
         <Text style={styles.createPostButtonText}>Create Post</Text>
       </Pressable>
 
@@ -567,10 +657,14 @@ isDesktopWeb && styles.sectionDesktop,
         <View style={styles.noPostsCard}>
           <Text style={styles.noPostsTitle}>No posts yet</Text>
           <Text style={styles.noPostsText}>
-            Start posting photos, videos, thoughts, or memes to build your private profile content.
+            Start posting photos, videos, thoughts, or memes to build your
+            private profile content.
           </Text>
 
-          <Pressable onPress={() => router.push("/create-post")} style={styles.firstPostButton}>
+          <Pressable
+            onPress={() => router.push("/create-post")}
+            style={styles.firstPostButton}
+          >
             <Text style={styles.firstPostButtonText}>Create First Post</Text>
           </Pressable>
         </View>
@@ -591,22 +685,33 @@ isDesktopWeb && styles.sectionDesktop,
                   }
                 >
                   {videoPost ? (
-                    <View style={styles.videoPreviewWrap}>
-                      <Video
-                        source={{ uri: mediaUrl }}
-                        style={styles.postImage}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay
-                        isMuted
-                        isLooping
-                        useNativeControls={false}
+                    <View
+                      style={[
+                        styles.videoPreviewWrap,
+                        {
+                          aspectRatio:
+                            typeof document !== "undefined" ? 4 / 5 : 4 / 3,
+                        },
+                      ]}
+                    >
+                      <PostMediaVideo
+                        uri={mediaUrl}
+                        fit={
+                          typeof document !== "undefined" ? "contain" : "cover"
+                        }
                       />
                       <View style={styles.videoBadge}>
                         <Text style={styles.videoBadgeText}>Video</Text>
                       </View>
                     </View>
                   ) : (
-                    <Image source={{ uri: mediaUrl }} style={styles.postImage} resizeMode="cover" />
+                    <Image
+                      source={{ uri: mediaUrl }}
+                      style={styles.postImage}
+                      resizeMode={
+                        typeof document !== "undefined" ? "contain" : "cover"
+                      }
+                    />
                   )}
                 </Pressable>
               ) : (
@@ -624,8 +729,12 @@ isDesktopWeb && styles.sectionDesktop,
               )}
 
               <View style={styles.postBody}>
-                {post.caption ? <Text style={styles.postCaption}>{post.caption}</Text> : null}
-                <Text style={styles.postDate}>{formatDate(post.created_at)}</Text>
+                {post.caption ? (
+                  <Text style={styles.postCaption}>{post.caption}</Text>
+                ) : null}
+                <Text style={styles.postDate}>
+                  {formatDate(post.created_at)}
+                </Text>
 
                 <View style={styles.postActions}>
                   <Pressable
@@ -640,11 +749,17 @@ isDesktopWeb && styles.sectionDesktop,
                     <Text style={styles.openPostButtonText}>Open</Text>
                   </Pressable>
 
-                  <Pressable onPress={() => router.push(`/edit-post/${post.id}` as any)} style={styles.editPostButton}>
+                  <Pressable
+                    onPress={() => router.push(`/edit-post/${post.id}` as any)}
+                    style={styles.editPostButton}
+                  >
                     <Text style={styles.editPostButtonText}>Edit</Text>
                   </Pressable>
 
-                  <Pressable onPress={() => handleDelete(post.id)} style={styles.deletePostButton}>
+                  <Pressable
+                    onPress={() => handleDelete(post.id)}
+                    style={styles.deletePostButton}
+                  >
                     <Text style={styles.deletePostButtonText}>Delete</Text>
                   </Pressable>
                 </View>
@@ -747,17 +862,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  
-  heroDesktop:{
-    paddingHorizontal:28,
+  heroDesktop: {
+    paddingHorizontal: 28,
   },
 
-  heroWideDesktop:{
-    maxWidth:980,
-    alignSelf:"center",
+  heroWideDesktop: {
+    maxWidth: 980,
+    alignSelf: "center",
   },
 
-heroCard: {
+  heroCard: {
     backgroundColor: "#FFFFFFEE",
     borderWidth: 1.5,
     borderColor: BRAND.border,
@@ -913,7 +1027,12 @@ heroCard: {
   },
 
   followStatNumber: { color: BRAND.text, fontSize: 20, fontWeight: "900" },
-  followStatLabel: { marginTop: 2, color: BRAND.muted, fontSize: 13, fontWeight: "800" },
+  followStatLabel: {
+    marginTop: 2,
+    color: BRAND.muted,
+    fontSize: 13,
+    fontWeight: "800",
+  },
 
   tagRow: {
     flexDirection: "row",
@@ -993,13 +1112,12 @@ heroCard: {
     marginBottom: 18,
   },
 
-  
-  sectionDesktop:{
-    padding:24,
-    borderRadius:28,
+  sectionDesktop: {
+    padding: 24,
+    borderRadius: 28,
   },
 
-sectionTitle: {
+  sectionTitle: {
     fontWeight: "900",
     fontSize: 20,
     color: BRAND.text,
@@ -1114,6 +1232,9 @@ sectionTitle: {
   firstPostButtonText: { color: "#fff", fontWeight: "900" },
 
   postCard: {
+    width: "100%",
+    maxWidth: 600,
+    alignSelf: "center",
     marginTop: 16,
     borderWidth: 1.5,
     borderColor: BRAND.border,
@@ -1122,12 +1243,20 @@ sectionTitle: {
     backgroundColor: "#fff",
   },
 
-  postImage: { width: "100%", height: 260, backgroundColor: "#000" },
+  postImage: { width: "100%", aspectRatio: 4 / 3, backgroundColor: "#000" },
+
+  postVideo: {
+    width: "100%",
+    height: "100%",
+    alignSelf: "center",
+    backgroundColor: "#000",
+  },
 
   videoPreviewWrap: {
     width: "100%",
-    height: 260,
     backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   videoBadge: {

@@ -42,7 +42,7 @@ export default function TabsLayout() {
       );
 
   const desktopRailWidth =
-    isWideDesktopWeb ? 252 : 228;
+    isWideDesktopWeb ? 280 : 252;
 
   useEffect(() => {
     bootstrap();
@@ -263,14 +263,16 @@ export default function TabsLayout() {
         headerTitle: "",
         headerStyle: {
           backgroundColor: "#FFFFFF",
-          height: isDesktopWeb ? 70 : 58,
+          height: isDesktopWeb ? 76 : 58,
+          borderBottomWidth: isDesktopWeb ? 1 : 0,
+          borderBottomColor: isDesktopWeb ? "#F0E5EC" : "transparent",
         },
         headerShadowVisible: false,
         sceneStyle: {
           width: "100%",
           maxWidth: isWideDesktopWeb ? 1560 : 1380,
           alignSelf: "center",
-          backgroundColor: "#FFFFFF",
+          backgroundColor: isDesktopWeb ? "#FCFAFC" : "#FFFFFF",
         },
 
         tabBarPosition:
@@ -282,6 +284,88 @@ export default function TabsLayout() {
           isDesktopWeb
             ? "beside-icon"
             : "below-icon",
+
+        tabBarBackground: isDesktopWeb
+          ? () => (
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: "#FBF7FC",
+                }}
+              >
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 24,
+                    left: 20,
+                    right: 20,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 16,
+                      backgroundColor: "#FFFFFF",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: 1,
+                      borderColor: "#F0DCE8",
+                      shadowColor: "#7B3FE4",
+                      shadowOpacity: 0.1,
+                      shadowRadius: 12,
+                      shadowOffset: { width: 0, height: 5 },
+                    }}
+                  >
+                    <Image
+                      source={require("../../assets/images/polyopen-logo.png")}
+                      style={{ width: 39, height: 39 }}
+                      resizeMode="contain"
+                    />
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        color: BRAND.text,
+                        fontSize: 19,
+                        fontWeight: "900",
+                        letterSpacing: -0.4,
+                      }}
+                    >
+                      PolyOpen
+                    </Text>
+
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        marginTop: 2,
+                        color: BRAND.muted,
+                        fontSize: 10,
+                        fontWeight: "700",
+                      }}
+                    >
+                      Ethical Love~Open Spirituality
+                    </Text>
+                  </View>
+                </View>
+
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 94,
+                    left: 20,
+                    right: 20,
+                    height: 1,
+                    backgroundColor: "#EEDFE8",
+                  }}
+                />
+              </View>
+            )
+          : undefined,
 
         headerRight: () => (
           <View
@@ -382,7 +466,11 @@ export default function TabsLayout() {
         ),
 
         tabBarActiveTintColor: BRAND.magenta,
-        tabBarInactiveTintColor: BRAND.blue,
+        tabBarInactiveTintColor: "#526078",
+        tabBarActiveBackgroundColor: isDesktopWeb
+          ? "#FFFFFF"
+          : "transparent",
+        tabBarInactiveBackgroundColor: "transparent",
         tabBarHideOnKeyboard: true,
 
         tabBarStyle: isDesktopWeb
@@ -390,14 +478,18 @@ export default function TabsLayout() {
               position: "relative",
               width: desktopRailWidth,
               height: "100%",
-              paddingTop: 22,
-              paddingHorizontal: 14,
-              paddingBottom: 24,
-              backgroundColor: "#FFF9FC",
+              paddingTop: 112,
+              paddingHorizontal: 16,
+              paddingBottom: 26,
+              backgroundColor: "transparent",
               borderTopWidth: 0,
               borderRightWidth: 1,
-              borderRightColor: BRAND.border,
+              borderRightColor: "#EEDFE8",
               borderRadius: 0,
+              shadowColor: "#7B3FE4",
+              shadowOpacity: 0.06,
+              shadowRadius: 24,
+              shadowOffset: { width: 8, height: 0 },
             }
           : {
               position: "absolute",
@@ -414,11 +506,11 @@ export default function TabsLayout() {
 
         tabBarItemStyle: isDesktopWeb
           ? {
-              minHeight: 58,
-              maxHeight: 58,
-              marginVertical: 4,
-              borderRadius: 18,
-              paddingHorizontal: 10,
+              minHeight: 54,
+              maxHeight: 54,
+              marginVertical: 5,
+              borderRadius: 17,
+              paddingHorizontal: 12,
             }
           : undefined,
 
@@ -431,6 +523,7 @@ export default function TabsLayout() {
         tabBarLabelStyle: {
           fontWeight: "800",
           fontSize: isDesktopWeb ? 14 : 11,
+          letterSpacing: isDesktopWeb ? 0.1 : 0,
           marginBottom: isDesktopWeb ? 0 : 2,
           textAlign: "left",
         },

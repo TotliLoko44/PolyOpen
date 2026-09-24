@@ -19,7 +19,7 @@ import {
   useConnectionState,
   useRoomContext,
   useTracks,
-} from "@livekit/react-native";
+} from "../../lib/liveKitComponents";
 import {
   ConnectionState,
   Track,
@@ -589,7 +589,7 @@ export default function LiveSpeedDatingVideo({
           );
         }, 1200);
       }}
-      onError={(error) => {
+      onError={(error: any) => {
         console.error(
           "LiveKit Speed Dating error",
           error,
@@ -600,7 +600,7 @@ export default function LiveSpeedDatingVideo({
             "The live video connection failed.",
         );
       }}
-      onMediaDeviceFailure={(failure) => {
+      onMediaDeviceFailure={(failure: any) => {
         const message = failure
           ? `Camera or microphone error: ${failure}`
           : "PolyOpen could not access the camera or microphone.";

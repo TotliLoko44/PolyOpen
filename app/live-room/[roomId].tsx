@@ -1,9 +1,4 @@
-import {
-  AudioSession,
-  LiveKitRoom,
-  useTracks,
-  VideoTrack,
-} from "@livekit/react-native";
+import { AudioSession, LiveKitRoom, useTracks, VideoTrack } from "../../lib/liveKitComponents";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Track } from "livekit-client";

@@ -696,7 +696,10 @@ export default function PremiumScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          Platform.OS === "web" ? styles.contentWeb : null,
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -1171,6 +1174,14 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 58,
     backgroundColor: "#FFFFFF",
+  },
+
+  contentWeb: {
+    width: "100%",
+    maxWidth: 1120,
+    alignSelf: "center",
+    paddingHorizontal: 28,
+    paddingTop: 24,
   },
 
   backButton: {

@@ -1,6 +1,13 @@
-import { ResizeMode, Video } from "expo-av";
 import React, { useMemo } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { PostMediaVideo } from "../../components/PostMediaVideo";
 import { BRAND } from "../../lib/brand";
 import type { FeedItem } from "../../lib/social";
 
@@ -51,8 +58,13 @@ function formatCount(value?: number | null) {
   return String(count);
 }
 
-function isVideoPost(row: FeedItem & Record<string, any>, mediaUrl?: string | null) {
-  const cleanUrl = String(mediaUrl ?? "").split("?")[0].toLowerCase();
+function isVideoPost(
+  row: FeedItem & Record<string, any>,
+  mediaUrl?: string | null,
+) {
+  const cleanUrl = String(mediaUrl ?? "")
+    .split("?")[0]
+    .toLowerCase();
 
   return (
     row.post_type === "video" ||
@@ -75,12 +87,17 @@ export default function PostCard({
 }: Props) {
   const row = item as FeedItem & Record<string, any>;
 
-  const authorName = row.display_name || row.username || row.author_name || "User";
+  const authorName =
+    row.display_name || row.username || row.author_name || "User";
 
   const username = row.username ? `@${row.username}` : "PolyOpen member";
 
   const authorImage =
-    row.profile_photo_url || row.avatar_url || row.author_avatar_url || row.author_avatar || null;
+    row.profile_photo_url ||
+    row.avatar_url ||
+    row.author_avatar_url ||
+    row.author_avatar ||
+    null;
 
   const mediaUrl =
     row.first_media_url ||
@@ -101,12 +118,23 @@ export default function PostCard({
 
   return (
     <View style={styles.card}>
-      <Pressable onPress={() => onOpenAuthor(item.author_id)} style={styles.headerRow}>
+      <Pressable
+        onPress={() => onOpenAuthor(item.author_id)}
+        style={styles.headerRow}
+      >
         <View style={styles.avatarWrap}>
           {authorImage ? (
-            <Image source={{ uri: authorImage }} style={styles.avatar} resizeMode="cover" />
+            <Image
+              source={{ uri: authorImage }}
+              style={styles.avatar}
+              resizeMode="cover"
+            />
           ) : (
-            <Image source={POLYOPEN_LOGO} style={styles.avatarLogo} resizeMode="contain" />
+            <Image
+              source={POLYOPEN_LOGO}
+              style={styles.avatarLogo}
+              resizeMode="contain"
+            />
           )}
         </View>
 
@@ -124,7 +152,10 @@ export default function PostCard({
         </View>
       </Pressable>
 
-      <Pressable onPress={() => onOpenPost(item.post_id)} style={styles.bodyPress}>
+      <Pressable
+        onPress={() => onOpenPost(item.post_id)}
+        style={styles.bodyPress}
+      >
         {caption ? (
           <Text numberOfLines={hasMedia ? 5 : 8} style={styles.caption}>
             {caption}
@@ -132,17 +163,17 @@ export default function PostCard({
         ) : null}
 
         {mediaUrl ? (
-          <View style={styles.mediaWrap}>
+          <View
+            style={[
+              styles.mediaWrap,
+              Platform.OS === "web" ? styles.mediaWrapWeb : null,
+            ]}
+          >
             {isVideo ? (
               <>
-                <Video
-                  source={{ uri: mediaUrl }}
-                  style={styles.media}
-                  resizeMode={ResizeMode.COVER}
-                  shouldPlay
-                  isMuted
-                  isLooping
-                  useNativeControls={false}
+                <PostMediaVideo
+                  uri={mediaUrl}
+                  fit={Platform.OS === "web" ? "contain" : "cover"}
                 />
 
                 <View style={styles.videoBadge}>
@@ -150,14 +181,22 @@ export default function PostCard({
                 </View>
               </>
             ) : (
-              <Image source={{ uri: mediaUrl }} style={styles.media} resizeMode="cover" />
+              <Image
+                source={{ uri: mediaUrl }}
+                style={styles.media}
+                resizeMode={Platform.OS === "web" ? "contain" : "cover"}
+              />
             )}
           </View>
         ) : null}
 
         {!caption && !mediaUrl ? (
           <View style={styles.emptyPostBox}>
-            <Image source={POLYOPEN_LOGO} style={styles.emptyPostLogo} resizeMode="contain" />
+            <Image
+              source={POLYOPEN_LOGO}
+              style={styles.emptyPostLogo}
+              resizeMode="contain"
+            />
             <Text style={styles.emptyPostText}>Open post</Text>
           </View>
         ) : null}
@@ -165,7 +204,8 @@ export default function PostCard({
 
       <View style={styles.countRow}>
         <Text style={styles.countText}>
-          {formatCount(item.like_count)} like{Number(item.like_count ?? 0) === 1 ? "" : "s"}
+          {formatCount(item.like_count)} like
+          {Number(item.like_count ?? 0) === 1 ? "" : "s"}
         </Text>
         <Text style={styles.countText}>
           {formatCount(item.comment_count)} comment
@@ -176,23 +216,40 @@ export default function PostCard({
       <View style={styles.actionRow}>
         <Pressable
           onPress={() => onLikePress(item.post_id)}
-          style={[styles.actionButton, isLiked ? styles.actionButtonActive : null]}
+          style={[
+            styles.actionButton,
+            isLiked ? styles.actionButtonActive : null,
+          ]}
         >
-          <Text style={[styles.actionText, isLiked ? styles.actionTextActive : null]}>
+          <Text
+            style={[
+              styles.actionText,
+              isLiked ? styles.actionTextActive : null,
+            ]}
+          >
             {isLiked ? "♥ Liked" : "♡ Like"}
           </Text>
         </Pressable>
 
-        <Pressable onPress={() => onCommentPress(item.post_id)} style={styles.actionButton}>
+        <Pressable
+          onPress={() => onCommentPress(item.post_id)}
+          style={styles.actionButton}
+        >
           <Text style={styles.actionText}>💬 Comment</Text>
         </Pressable>
 
-        <Pressable onPress={() => onSharePress(item.post_id)} style={styles.actionButton}>
+        <Pressable
+          onPress={() => onSharePress(item.post_id)}
+          style={styles.actionButton}
+        >
           <Text style={styles.actionText}>↻ Share</Text>
         </Pressable>
       </View>
 
-      <Pressable onPress={() => onOpenPost(item.post_id)} style={styles.openThreadButton}>
+      <Pressable
+        onPress={() => onOpenPost(item.post_id)}
+        style={styles.openThreadButton}
+      >
         <Text style={styles.openThreadText}>Open conversation</Text>
       </Pressable>
     </View>
@@ -297,6 +354,14 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 340,
     backgroundColor: "#111111",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  mediaWrapWeb: {
+    height: "auto",
+    aspectRatio: 4 / 5,
   },
 
   media: {
