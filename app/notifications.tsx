@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -319,6 +320,12 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.screen}>
+      <View
+        style={[
+          styles.pageContent,
+          Platform.OS === "web" ? styles.pageContentWeb : null,
+        ]}
+      >
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backButtonText}>Back</Text>
@@ -386,6 +393,7 @@ export default function NotificationsScreen() {
           })}
         </ScrollView>
       )}
+      </View>
     </View>
   );
 }
@@ -395,6 +403,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BRAND.bg,
     padding: 18,
+  },
+
+  pageContent: {
+    flex: 1,
+    width: "100%",
+  },
+
+  pageContentWeb: {
+    maxWidth: 960,
+    alignSelf: "center",
   },
 
   headerRow: {

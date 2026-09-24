@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -503,7 +504,17 @@ export default function EditProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[
+        styles.content,
+        Platform.OS === "web" ? styles.contentWeb : null,
+      ]}
+    >
+      <Pressable onPress={() => router.back()} style={styles.pageBackButton}>
+        <Text style={styles.pageBackButtonText}>Back</Text>
+      </Pressable>
+
       <Text style={styles.header}>Edit Profile</Text>
 
       <View style={styles.premiumCard}>
@@ -817,6 +828,34 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingBottom: 120,
+  },
+
+  contentWeb: {
+    width: "100%",
+    maxWidth: 900,
+    alignSelf: "center",
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 80,
+  },
+
+  pageBackButton: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: BRAND.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+
+  pageBackButtonText: {
+    color: BRAND.text,
+    fontSize: 15,
+    fontWeight: "900",
   },
 
   header: {

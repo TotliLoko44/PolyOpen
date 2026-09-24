@@ -377,7 +377,10 @@ export default function WalletScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          Platform.OS === "web" ? styles.contentWeb : null,
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topRow}>
@@ -530,6 +533,15 @@ const styles = StyleSheet.create({
   content: {
     padding: 18,
     paddingBottom: 120,
+  },
+
+  contentWeb: {
+    width: "100%",
+    maxWidth: 1040,
+    alignSelf: "center",
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 80,
   },
 
   topRow: {

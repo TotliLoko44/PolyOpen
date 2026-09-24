@@ -880,10 +880,19 @@ export default function SettingsScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            Platform.OS === "web" ? styles.contentWeb : null,
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {panel === "home" ? (
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
+              <Text style={styles.backButtonText}>Back</Text>
+            </Pressable>
+          ) : null}
+
           {renderPanel()}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -921,6 +930,15 @@ const styles = StyleSheet.create({
   content: {
     padding: 18,
     paddingBottom: 140,
+  },
+
+  contentWeb: {
+    width: "100%",
+    maxWidth: 960,
+    alignSelf: "center",
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 80,
   },
 
   panelHeader: {
