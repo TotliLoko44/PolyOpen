@@ -8,6 +8,7 @@ import {
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -456,9 +457,10 @@ export default function SpeedDatingLobbyScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={
-          styles.content
-        }
+        contentContainerStyle={[
+          styles.content,
+          Platform.OS === "web" ? styles.contentWeb : null,
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.liveBadge}>
@@ -786,6 +788,14 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 32,
+  },
+
+  contentWeb: {
+    width: "100%",
+    maxWidth: 960,
+    alignSelf: "center",
+    paddingHorizontal: 32,
+    paddingTop: 40,
   },
 
   liveBadge: {

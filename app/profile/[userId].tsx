@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -566,7 +567,13 @@ async function handleMessage() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          Platform.OS === "web" ? styles.contentWeb : null,
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>Back</Text>
         </Pressable>
@@ -595,8 +602,18 @@ async function handleMessage() {
               </View>
             ) : null}
 
-            <View style={styles.heroCard}>
-              <View style={styles.cover}>
+            <View
+              style={[
+                styles.heroCard,
+                Platform.OS === "web" ? styles.heroCardWeb : null,
+              ]}
+            >
+              <View
+                style={[
+                  styles.cover,
+                  Platform.OS === "web" ? styles.coverWeb : null,
+                ]}
+              >
                 {profile.cover_photo_url ? (
                   <Image
                     source={{ uri: profile.cover_photo_url }}
@@ -617,7 +634,12 @@ async function handleMessage() {
                 ) : null}
               </View>
 
-              <View style={styles.profileCenter}>
+              <View
+                style={[
+                  styles.profileCenter,
+                  Platform.OS === "web" ? styles.profileCenterWeb : null,
+                ]}
+              >
                 <View style={styles.avatarWrap}>
                   {avatarUrl ? (
                     <Image
@@ -650,7 +672,12 @@ async function handleMessage() {
                   {lockedPreview ? "Unlock to reveal details" : location || "PolyOpen member"}
                 </Text>
 
-                <View style={styles.statsRow}>
+                <View
+                  style={[
+                    styles.statsRow,
+                    Platform.OS === "web" ? styles.statsRowWeb : null,
+                  ]}
+                >
                   <View style={styles.statPill}>
                     <Text style={styles.statNumber}>{lockedPreview ? "••" : followersCount}</Text>
                     <Text style={styles.statLabel}>Followers</Text>
@@ -701,7 +728,12 @@ async function handleMessage() {
                     )}
 
                     {myUserId !== profile.id ? (
-                      <View style={styles.actionRow}>
+                      <View
+                        style={[
+                          styles.actionRow,
+                          Platform.OS === "web" ? styles.actionRowWeb : null,
+                        ]}
+                      >
                         <Pressable
                           onPress={handleMessage}
                           disabled={messageLoading}
@@ -887,6 +919,15 @@ const styles = StyleSheet.create({
     paddingBottom: 140,
   },
 
+  contentWeb: {
+    width: "100%",
+    maxWidth: 1040,
+    alignSelf: "center",
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 80,
+  },
+
   backButton: {
     alignSelf: "flex-start",
     minHeight: 44,
@@ -959,11 +1000,19 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
 
+  heroCardWeb: {
+    width: "100%",
+  },
+
   cover: {
     height: 165,
     backgroundColor: "#F3F7FF",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  coverWeb: {
+    height: 230,
   },
 
   coverImage: {
@@ -1002,6 +1051,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 18,
     paddingBottom: 22,
+  },
+
+  profileCenterWeb: {
+    paddingHorizontal: 32,
+    paddingBottom: 30,
   },
 
   avatarWrap: {
@@ -1083,6 +1137,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginTop: 16,
+  },
+
+  statsRowWeb: {
+    maxWidth: 720,
+    alignSelf: "center",
   },
 
   statPill: {
@@ -1186,6 +1245,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     marginTop: 18,
+  },
+
+  actionRowWeb: {
+    maxWidth: 720,
+    alignSelf: "center",
   },
 
   messageAction: {
