@@ -18,6 +18,7 @@ import {
   View,
 } from "react-native";
 import { BRAND } from "../../lib/brand";
+import { loadPolyOpenAccess } from "../../lib/access";
 import { supabase } from "../../lib/supabase";
 
 type Visibility = "public" | "followers" | "connections";
@@ -108,10 +109,6 @@ function isFreshEnough(room: LiveRoom) {
   if (Number.isNaN(created)) return false;
 
   return Date.now() - created <= 1000 * 60 * 60 * 8;
-}
-
-function hasNoAdsAccess(profile?: any) {
-  return Boolean(profile?.no_ads || profile?.premium_bundle || profile?.is_premium);
 }
 
 function getHostName(room: LiveRoom) {
@@ -296,25 +293,20 @@ export default function BrowseScreen() {
             .maybeSingle()
         : Promise.resolve({ data: null, error: null } as any);
 
-      const myProfilePromise = uid
-        ? supabase
-            .from("profiles")
-            .select("no_ads, premium_bundle, is_premium")
-            .eq("id", uid)
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null } as any);
+      const myAccessPromise = uid
+        ? loadPolyOpenAccess(uid)
+        : Promise.resolve(null);
 
-      const [roomsRes, myRoomRes, myProfileRes] = await Promise.all([
+      const [roomsRes, myRoomRes, myAccess] = await Promise.all([
         liveRoomsPromise,
         myRoomPromise,
-        myProfilePromise,
+        myAccessPromise,
       ]);
 
       if (roomsRes.error) throw roomsRes.error;
       if (myRoomRes?.error) throw myRoomRes.error;
-      if (myProfileRes?.error) throw myProfileRes.error;
 
-      setNoAdsActive(hasNoAdsAccess(myProfileRes?.data));
+      setNoAdsActive(Boolean(myAccess?.hasNoAds));
 
       const rawRooms = ((roomsRes.data ?? []) as LiveRoom[]).filter(
         (room) => room.id && room.host_id && isFreshEnough(room)

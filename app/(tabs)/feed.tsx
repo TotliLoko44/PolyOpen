@@ -26,6 +26,7 @@ import {
   repostPost,
   type FeedItem,
 } from "../../lib/social";
+import { loadPolyOpenAccess } from "../../lib/access";
 import { supabase } from "../../lib/supabase";
 import PostCard from "../components/PostCard";
 
@@ -119,7 +120,7 @@ export default function FeedScreen() {
 
         const [
           { data: followRows, error: followError },
-          { data: profileData, error: profileError },
+          access,
           feed,
           blockedIds,
         ] = await Promise.all([
@@ -127,19 +128,14 @@ export default function FeedScreen() {
             .from("follows")
             .select("following_id")
             .eq("follower_id", userId),
-          supabase
-            .from("profiles")
-            .select("no_ads, premium_bundle")
-            .eq("id", userId)
-            .maybeSingle(),
+          loadPolyOpenAccess(userId),
           getFeedForUser(userId, 75, 0),
           getBlockedUserIds(userId),
         ]);
 
         if (followError) throw followError;
-        if (profileError) throw profileError;
 
-        setNoAdsActive(Boolean(profileData?.no_ads || profileData?.premium_bundle));
+        setNoAdsActive(access.hasNoAds);
 
         const realFollowingIds = Array.from(
           new Set(

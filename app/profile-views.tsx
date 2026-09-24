@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { BRAND } from "../lib/brand";
+import { loadPolyOpenAccess } from "../lib/access";
 import { supabase } from "../lib/supabase";
 
 const POLYOPEN_LOGO = require("../assets/images/polyopen-logo.png");
@@ -58,19 +59,9 @@ export default function ProfileViewsScreen() {
         return;
       }
 
-      const { data: profileRow, error: profileError } = await supabase
-        .from("profiles")
-        .select("is_premium, premium_bundle")
-        .eq("id", user.id)
-        .maybeSingle();
+      const access = await loadPolyOpenAccess(user.id);
 
-      if (profileError) throw profileError;
-
-      const premiumAccess = Boolean(
-        profileRow?.is_premium || profileRow?.premium_bundle
-      );
-
-      setHasPremiumAccess(premiumAccess);
+      setHasPremiumAccess(access.canSeePremiumLikesAndViews);
 
       const { data: viewRows, error: viewsError } = await supabase
         .from("profile_views")
@@ -96,7 +87,7 @@ export default function ProfileViewsScreen() {
         return;
       }
 
-      if (!premiumAccess) {
+      if (!access.canSeePremiumLikesAndViews) {
         const lockedPreview = viewerIds.slice(0, 6).map((id, index) => ({
           id,
           display_name: "Hidden Viewer",

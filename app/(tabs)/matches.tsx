@@ -15,6 +15,7 @@ import {
 
 import { useAuth } from "../../lib/auth";
 import { BRAND } from "../../lib/brand";
+import { loadPolyOpenAccess } from "../../lib/access";
 import { supabase } from "../../lib/supabase";
 
 type ViewerItem = {
@@ -201,24 +202,9 @@ export default function ConnectionsScreen() {
     }
 
     try {
-      const { data: me, error: meError } = await supabase
-        .from("profiles")
-        .select("is_premium, premium_bundle, premium_expires_at")
-        .eq("id", userId)
-        .maybeSingle();
+      const access = await loadPolyOpenAccess(userId);
 
-      if (meError) throw meError;
-
-      const premiumExpiresAt = me?.premium_expires_at
-        ? new Date(me.premium_expires_at).getTime()
-        : 0;
-
-      const premiumActive =
-        Boolean(me?.is_premium || me?.premium_bundle) &&
-        (!me?.premium_expires_at ||
-          (!Number.isNaN(premiumExpiresAt) && premiumExpiresAt > Date.now()));
-
-      setIsPremium(premiumActive);
+      setIsPremium(access.canSeePremiumLikesAndViews);
 
       const [
         { data: admirers, error: admirersError },
