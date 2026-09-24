@@ -6,7 +6,7 @@ import mobileAds, {
   TestIds,
 } from "react-native-google-mobile-ads";
 
-import { supabase } from "./supabase";
+import { loadPolyOpenAccess } from "./access";
 
 const USE_TEST_ADS = __DEV__;
 
@@ -82,15 +82,10 @@ export async function userHasAdFreeAccess(
     return false;
   }
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(
-      "no_ads, premium_bundle, premium_expires_at",
-    )
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) {
+  try {
+    const access = await loadPolyOpenAccess(userId);
+    return access.hasNoAds;
+  } catch (error) {
     console.warn(
       "Unable to verify No Ads access",
       error,
@@ -98,27 +93,6 @@ export async function userHasAdFreeAccess(
 
     return false;
   }
-
-  const bundleActive =
-    Boolean(data?.premium_bundle) &&
-    (
-      !data?.premium_expires_at ||
-      (
-        !Number.isNaN(
-          new Date(
-            data.premium_expires_at,
-          ).getTime(),
-        ) &&
-        new Date(
-          data.premium_expires_at,
-        ).getTime() > Date.now()
-      )
-    );
-
-  return Boolean(
-    data?.no_ads ||
-    bundleActive,
-  );
 }
 
 export async function showMiniGameInterstitial(

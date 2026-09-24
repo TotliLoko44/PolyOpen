@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { loadPolyOpenAccess } from "./access";
 
 export const ADMOB_APP_ID_ANDROID =
   "ca-app-pub-6439814432951642~8608061442";
@@ -36,15 +36,10 @@ export async function userHasAdFreeAccess(
     return false;
   }
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(
-      "no_ads, premium_bundle, premium_expires_at",
-    )
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) {
+  try {
+    const access = await loadPolyOpenAccess(userId);
+    return access.hasNoAds;
+  } catch (error) {
     console.warn(
       "Unable to verify No Ads access",
       error,
@@ -52,28 +47,6 @@ export async function userHasAdFreeAccess(
 
     return false;
   }
-
-  const expirationTime =
-    data?.premium_expires_at
-      ? new Date(
-          data.premium_expires_at,
-        ).getTime()
-      : null;
-
-  const bundleActive =
-    Boolean(data?.premium_bundle) &&
-    (
-      expirationTime === null ||
-      (
-        !Number.isNaN(expirationTime) &&
-        expirationTime > Date.now()
-      )
-    );
-
-  return Boolean(
-    data?.no_ads ||
-    bundleActive,
-  );
 }
 
 /**
