@@ -19,6 +19,7 @@ import Purchases, {
 } from "react-native-purchases";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { loadPolyOpenAccess } from "../lib/access";
 import { useAuth } from "../lib/auth";
 import {
   activateBoostForHours,
@@ -110,7 +111,7 @@ function getPackagePrice(pkg?: PurchasesPackage | null, fallback?: string) {
 
 function findPackage(
   offering: PurchasesOffering | null,
-  identifier: string
+  identifier: string,
 ): PurchasesPackage | null {
   if (!offering?.availablePackages?.length) return null;
 
@@ -130,7 +131,7 @@ function getAccessFromCustomerInfo(customerInfo: CustomerInfo) {
   const hasBundle = hasEntitlement(customerInfo, BUNDLE_ENTITLEMENT_ID);
   const hasVerification = hasEntitlement(
     customerInfo,
-    VERIFICATION_ENTITLEMENT_ID
+    VERIFICATION_ENTITLEMENT_ID,
   );
 
   return {
@@ -138,7 +139,9 @@ function getAccessFromCustomerInfo(customerInfo: CustomerInfo) {
     no_ads: hasNoAds || hasBundle,
     premium_bundle: hasBundle,
     premium_tier: hasBundle
-      ? "premium_no_ads_bundle"
+      ? hasVerification
+        ? "premium_no_ads_gold_bundle"
+        : "premium_no_ads_bundle"
       : hasPremium
         ? "premium_monthly"
         : hasNoAds
@@ -186,6 +189,7 @@ export default function PremiumScreen() {
   const [noAdsActive, setNoAdsActive] = useState(false);
   const [bundleActive, setBundleActive] = useState(false);
   const [verificationActive, setVerificationActive] = useState(false);
+  const [vipActive, setVipActive] = useState(false);
 
   const [boostCredits, setBoostCredits] = useState(0);
   const [boostActive, setBoostActive] = useState(false);
@@ -196,47 +200,47 @@ export default function PremiumScreen() {
 
   const boostTimeLabel = useMemo(
     () => formatBoostTime(boostExpiresAt),
-    [boostExpiresAt]
+    [boostExpiresAt],
   );
 
   const premiumPackage = useMemo(
     () => findPackage(offering, PREMIUM_PACKAGE_ID),
-    [offering]
+    [offering],
   );
 
   const noAdsPackage = useMemo(
     () => findPackage(offering, NO_ADS_PACKAGE_ID),
-    [offering]
+    [offering],
   );
 
   const bundlePackage = useMemo(
     () => findPackage(offering, BUNDLE_PACKAGE_ID),
-    [offering]
+    [offering],
   );
 
   const verificationPackage = useMemo(
     () => findPackage(offering, VERIFICATION_PACKAGE_ID),
-    [offering]
+    [offering],
   );
 
   const boost1Package = useMemo(
     () => findPackage(offering, BOOST_1_PACKAGE_ID),
-    [offering]
+    [offering],
   );
 
   const boost3Package = useMemo(
     () => findPackage(offering, BOOST_3_PACKAGE_ID),
-    [offering]
+    [offering],
   );
 
   const boost10Package = useMemo(
     () => findPackage(offering, BOOST_10_PACKAGE_ID),
-    [offering]
+    [offering],
   );
 
   const premiumPrice = getPackagePrice(premiumPackage, "$9.99");
   const noAdsPrice = getPackagePrice(noAdsPackage, "$9.99");
-  const bundlePrice = getPackagePrice(bundlePackage, "$14.99");
+  const bundlePrice = getPackagePrice(bundlePackage, "$19.99");
   const verificationPrice = getPackagePrice(verificationPackage, "$9.99");
 
   const boost1Price = getPackagePrice(boost1Package, "$1.99");
@@ -255,10 +259,13 @@ export default function PremiumScreen() {
 
     if (error) throw error;
 
-    setPremiumActive(Boolean(updates.is_premium));
-    setNoAdsActive(Boolean(updates.no_ads));
-    setBundleActive(Boolean(updates.premium_bundle));
-    setVerificationActive(Boolean(updates.is_verified));
+    const resolvedAccess = await loadPolyOpenAccess(userId);
+
+    setVipActive(resolvedAccess.isVip);
+    setPremiumActive(resolvedAccess.isPremium);
+    setNoAdsActive(resolvedAccess.hasNoAds);
+    setBundleActive(resolvedAccess.hasPremiumBundle);
+    setVerificationActive(resolvedAccess.hasGoldVerification);
   }
 
   async function loadBoostState(currentUserId: string) {
@@ -319,6 +326,7 @@ export default function PremiumScreen() {
       setNoAdsActive(false);
       setBundleActive(false);
       setVerificationActive(false);
+      setVipActive(false);
       setBoostCredits(0);
       setBoostActive(false);
       setBoostExpiresAt(null);
@@ -332,13 +340,14 @@ export default function PremiumScreen() {
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "is_premium, no_ads, premium_bundle, boost_active, boost_expires_at, is_verified"
+          "is_premium, no_ads, premium_bundle, boost_active, boost_expires_at, is_verified",
         )
         .eq("id", userId)
         .maybeSingle();
 
       if (error) throw error;
 
+      const access = await loadPolyOpenAccess(userId);
       const expiresAt = data?.boost_expires_at ?? null;
       const expires = expiresAt ? new Date(expiresAt).getTime() : 0;
 
@@ -348,10 +357,11 @@ export default function PremiumScreen() {
         !Number.isNaN(expires) &&
         expires > Date.now();
 
-      setPremiumActive(isActive(data?.is_premium));
-      setNoAdsActive(isActive(data?.no_ads));
-      setBundleActive(isActive(data?.premium_bundle));
-      setVerificationActive(isActive(data?.is_verified));
+      setVipActive(access.isVip);
+      setPremiumActive(access.isPremium);
+      setNoAdsActive(access.hasNoAds);
+      setBundleActive(access.hasPremiumBundle);
+      setVerificationActive(access.hasGoldVerification);
       setBoostActive(boostIsActive);
       setBoostExpiresAt(expiresAt);
 
@@ -369,7 +379,7 @@ export default function PremiumScreen() {
       console.log("PREMIUM STATUS ERROR:", error);
       Alert.alert(
         "Premium Error",
-        error?.message ?? "Could not load premium status."
+        error?.message ?? "Could not load premium status.",
       );
     } finally {
       setLoading(false);
@@ -392,6 +402,14 @@ export default function PremiumScreen() {
       return;
     }
 
+    if (vipActive) {
+      Alert.alert(
+        "Included with VIP",
+        "Your VIP membership already includes every PolyOpen plan benefit.",
+      );
+      return;
+    }
+
     const targetPackage =
       plan === "premium"
         ? premiumPackage
@@ -402,7 +420,7 @@ export default function PremiumScreen() {
     if (!targetPackage) {
       Alert.alert(
         "Store Not Ready",
-        "This package is not available yet. Check RevenueCat packages and rebuild the app."
+        "This package is not available yet. Check RevenueCat packages and rebuild the app.",
       );
       return;
     }
@@ -417,10 +435,10 @@ export default function PremiumScreen() {
       Alert.alert(
         "Purchase Complete",
         plan === "bundle"
-          ? "Premium + No Ads is now active. You can claim 1 Premium boost each week."
+          ? "Premium + No Ads + Gold Verification is now active. You can claim 1 Premium boost each week."
           : plan === "premium"
             ? "Premium is now active. You can claim 1 Premium boost each week."
-            : "No Ads is now active."
+            : "No Ads is now active.",
       );
     } catch (error: any) {
       if (error?.userCancelled) return;
@@ -438,10 +456,18 @@ export default function PremiumScreen() {
       return;
     }
 
+    if (vipActive) {
+      Alert.alert(
+        "Included with VIP",
+        "Gold Verification access is included with your VIP membership.",
+      );
+      return;
+    }
+
     if (!verificationPackage) {
       Alert.alert(
         "Verification Not Ready",
-        "This verification package is not available yet. Create the RevenueCat package with identifier verification, connect it to the verification entitlement, then rebuild."
+        "This verification package is not available yet. Create the RevenueCat package with identifier verification, connect it to the verification entitlement, then rebuild.",
       );
       return;
     }
@@ -449,7 +475,8 @@ export default function PremiumScreen() {
     try {
       setPlanBusy("verification");
 
-      const purchaseResult = await Purchases.purchasePackage(verificationPackage);
+      const purchaseResult =
+        await Purchases.purchasePackage(verificationPackage);
       await syncAccessToSupabase(purchaseResult.customerInfo);
       await activateGoldVerification(userId);
       setVerificationActive(true);
@@ -457,7 +484,7 @@ export default function PremiumScreen() {
 
       Alert.alert(
         "Gold Verification Active",
-        "Your profile is now Gold Verified."
+        "Your profile is now Gold Verified.",
       );
     } catch (error: any) {
       if (error?.userCancelled) return;
@@ -475,7 +502,7 @@ export default function PremiumScreen() {
     if (!premiumActive && !bundleActive) {
       Alert.alert(
         "Premium Required",
-        "Weekly boosts are included with Premium."
+        "Weekly boosts are included with Premium.",
       );
       return;
     }
@@ -483,7 +510,7 @@ export default function PremiumScreen() {
     if (weeklyBoostClaimed) {
       Alert.alert(
         "Already Claimed",
-        "You already claimed your Premium boost this week."
+        "You already claimed your Premium boost this week.",
       );
       return;
     }
@@ -505,7 +532,8 @@ export default function PremiumScreen() {
       if (result?.claimed === false || result?.success === false) {
         Alert.alert(
           "Already Claimed",
-          result?.message || "You already claimed your Premium boost this week."
+          result?.message ||
+            "You already claimed your Premium boost this week.",
         );
         return;
       }
@@ -514,13 +542,13 @@ export default function PremiumScreen() {
 
       Alert.alert(
         "Weekly Boost Added",
-        "Your Premium weekly boost credit was added to your wallet."
+        "Your Premium weekly boost credit was added to your wallet.",
       );
     } catch (error: any) {
       console.log("WEEKLY PREMIUM BOOST ERROR:", error);
       Alert.alert(
         "Weekly Boost Error",
-        error?.message ?? "Could not claim your weekly Premium boost."
+        error?.message ?? "Could not claim your weekly Premium boost.",
       );
     } finally {
       setWeeklyBoostBusy(false);
@@ -543,7 +571,7 @@ export default function PremiumScreen() {
     if (!targetPackage) {
       Alert.alert(
         "Boost Not Ready",
-        "This boost package is not available yet. Check RevenueCat boost packages."
+        "This boost package is not available yet. Check RevenueCat boost packages.",
       );
       return;
     }
@@ -554,9 +582,7 @@ export default function PremiumScreen() {
       const purchaseResult = await Purchases.purchasePackage(targetPackage);
 
       const productId =
-        targetPackage.product.identifier ||
-        targetPackage.identifier ||
-        plan;
+        targetPackage.product.identifier || targetPackage.identifier || plan;
 
       let hoursToActivate = getBoostHoursForProduct(productId);
 
@@ -573,7 +599,7 @@ export default function PremiumScreen() {
         });
 
         throw new Error(
-          `Boost product was purchased, but the app could not map it to a boost duration. Product: ${productId}`
+          `Boost product was purchased, but the app could not map it to a boost duration. Product: ${productId}`,
         );
       }
 
@@ -594,7 +620,7 @@ export default function PremiumScreen() {
             onPress: () => router.push("/(tabs)/swipe" as any),
           },
           { text: "Stay Here", style: "cancel" },
-        ]
+        ],
       );
     } catch (error: any) {
       if (error?.userCancelled) return;
@@ -650,7 +676,7 @@ export default function PremiumScreen() {
           : "No Active Purchases",
         access.is_premium || access.no_ads || access.is_verified
           ? "Your active Premium, No Ads, or Verification access has been restored. Boost purchases are consumable and cannot be restored after purchase."
-          : "No active Premium, No Ads, or Verification purchase was found. Boost purchases are consumable and cannot be restored after purchase."
+          : "No active Premium, No Ads, or Verification purchase was found. Boost purchases are consumable and cannot be restored after purchase.",
       );
     } catch (error: any) {
       console.log("RESTORE ERROR:", error);
@@ -663,7 +689,7 @@ export default function PremiumScreen() {
   function requestAdvertiserInfo() {
     Alert.alert(
       "Advertise on PolyOpen",
-      "Sponsor intake is ready for the next payment or contact-form connection."
+      "Sponsor intake is ready for the next payment or contact-form connection.",
     );
   }
 
@@ -721,8 +747,12 @@ export default function PremiumScreen() {
             style={styles.heroLogo}
             resizeMode="contain"
           />
-          <Text style={styles.heroEyebrow}>PolyOpen</Text>
-          <Text style={styles.heroTitle}>Premium</Text>
+          <Text style={styles.heroEyebrow}>
+            {vipActive ? "PolyOpen VIP" : "PolyOpen"}
+          </Text>
+          <Text style={styles.heroTitle}>
+            {vipActive ? "VIP Access" : "Premium"}
+          </Text>
           <Text style={styles.heroText}>
             Unlock visibility tools, remove ads, activate boosts, get verified,
             or bundle your best PolyOpen access together.
@@ -791,8 +821,8 @@ export default function PremiumScreen() {
           <Text style={styles.weeklyBoostEyebrow}>Premium benefit</Text>
           <Text style={styles.weeklyBoostTitle}>1 Free Boost Every Week</Text>
           <Text style={styles.weeklyBoostText}>
-            Premium members can claim one 1-hour profile boost credit every week.
-            Use it whenever you want more visibility in Swipe.
+            Premium members can claim one 1-hour profile boost credit every
+            week. Use it whenever you want more visibility in Swipe.
           </Text>
 
           <View style={styles.weeklyBoostStatusBox}>
@@ -813,7 +843,9 @@ export default function PremiumScreen() {
 
           <Pressable
             onPress={claimWeeklyPremiumBoost}
-            disabled={!weeklyBoostIncluded || weeklyBoostBusy || weeklyBoostClaimed}
+            disabled={
+              !weeklyBoostIncluded || weeklyBoostBusy || weeklyBoostClaimed
+            }
             style={[
               styles.weeklyBoostButton,
               !weeklyBoostIncluded || weeklyBoostBusy || weeklyBoostClaimed
@@ -829,40 +861,52 @@ export default function PremiumScreen() {
 
         <View style={styles.bundleCard}>
           <Text style={styles.bundleEyebrow}>Best value</Text>
-          <Text style={styles.bundleTitle}>Premium + No Ads</Text>
+          <Text style={styles.bundleTitle}>Premium + No Ads + Gold</Text>
           <Text style={styles.bundlePrice}>{bundlePrice}</Text>
           <Text style={styles.bundleSub}>/ month</Text>
 
           <Text style={styles.bundleText}>
-            Get the full Premium unlock plus an ad-free PolyOpen experience.
+            Get Premium visibility, an ad-free experience, and Gold Verification
+            together in one plan.
           </Text>
 
           <Text style={styles.bundleFeature}>• Premium visibility tools</Text>
           <Text style={styles.bundleFeature}>• Who liked and viewed you</Text>
-          <Text style={styles.bundleFeature}>• 1 free profile boost every week</Text>
-          <Text style={styles.bundleFeature}>• Remove Feed, Swipe, and Browse ads</Text>
+          <Text style={styles.bundleFeature}>
+            • 1 free profile boost every week
+          </Text>
+          <Text style={styles.bundleFeature}>
+            • Remove Feed, Swipe, and Browse ads
+          </Text>
+          <Text style={styles.bundleFeature}>• Gold Verification included</Text>
           <Text style={styles.bundleFeature}>• Best monthly value</Text>
 
           <Pressable
             onPress={() => purchasePlan("bundle")}
-            disabled={!!planBusy || !bundlePackage}
+            disabled={!!planBusy || vipActive || !bundlePackage}
             style={[
               styles.bundleButton,
-              planBusy || !bundlePackage ? styles.buttonDisabled : null,
+              planBusy || vipActive || !bundlePackage
+                ? styles.buttonDisabled
+                : null,
             ]}
           >
             <Text style={styles.bundleButtonText}>
               {planBusy === "bundle"
                 ? "Processing..."
-                : bundleActive
-                  ? "Bundle Active"
-                  : `Get Both for ${bundlePrice}`}
+                : vipActive
+                  ? "Included with VIP"
+                  : bundleActive
+                    ? "Bundle Active"
+                    : `Get All 3 for ${bundlePrice}`}
             </Text>
           </Pressable>
         </View>
 
         <View style={styles.verificationCard}>
-          <Text style={styles.verificationEyebrow}>Real account verification</Text>
+          <Text style={styles.verificationEyebrow}>
+            Real account verification
+          </Text>
           <Text style={styles.verificationTitle}>Gold Verification</Text>
           <Text style={styles.verificationPrice}>{verificationPrice}</Text>
           <Text style={styles.verificationSub}>/ month</Text>
@@ -896,10 +940,18 @@ export default function PremiumScreen() {
 
           <Pressable
             onPress={purchaseVerification}
-            disabled={!!planBusy || verificationActive || !verificationPackage}
+            disabled={
+              !!planBusy ||
+              vipActive ||
+              verificationActive ||
+              !verificationPackage
+            }
             style={[
               styles.verificationButton,
-              planBusy || verificationActive || !verificationPackage
+              planBusy ||
+              vipActive ||
+              verificationActive ||
+              !verificationPackage
                 ? styles.buttonDisabled
                 : null,
             ]}
@@ -907,9 +959,11 @@ export default function PremiumScreen() {
             <Text style={styles.verificationButtonText}>
               {planBusy === "verification"
                 ? "Processing..."
-                : verificationActive
-                  ? "Gold Verified"
-                  : `Get Verified for ${verificationPrice}`}
+                : vipActive
+                  ? "Included with VIP"
+                  : verificationActive
+                    ? "Gold Verified"
+                    : `Get Verified for ${verificationPrice}`}
             </Text>
           </Pressable>
         </View>
@@ -920,8 +974,8 @@ export default function PremiumScreen() {
           <Text style={styles.planSub}>/ month</Text>
 
           <Text style={styles.planText}>
-            Reveal Secret Admirers, unlock deeper discovery tools, and see more of the activity happening
-            around your profile.
+            Reveal Secret Admirers, unlock deeper discovery tools, and see more
+            of the activity happening around your profile.
           </Text>
 
           <FeatureRow text="Reveal who liked you" />
@@ -1049,7 +1103,9 @@ export default function PremiumScreen() {
             >
               <View>
                 <Text style={styles.boostPackTitle}>3 Hour Boost</Text>
-                <Text style={styles.boostPackSub}>Longer visibility window</Text>
+                <Text style={styles.boostPackSub}>
+                  Longer visibility window
+                </Text>
               </View>
               <Text style={styles.boostPackPrice}>
                 {boostPurchaseBusy === "boost3" ? "Buying..." : boost3Price}
@@ -1127,7 +1183,9 @@ export default function PremiumScreen() {
           <SponsorRow text="Future sponsor intake and Stripe flow" />
 
           <View style={styles.sponsorPriceBox}>
-            <Text style={styles.sponsorPriceLabel}>Starter sponsor package</Text>
+            <Text style={styles.sponsorPriceLabel}>
+              Starter sponsor package
+            </Text>
             <Text style={styles.sponsorPrice}>$49 / week</Text>
             <Text style={styles.sponsorPriceText}>
               Placeholder pricing for testing. Later this can connect to Stripe,
