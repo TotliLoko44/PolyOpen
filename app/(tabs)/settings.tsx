@@ -207,11 +207,14 @@ export default function SettingsScreen() {
 
       Alert.alert(
         "Check your email",
-        "Supabase will send confirmation steps to your new email address."
+        "Supabase will send confirmation steps to your new email address.",
       );
       setNewEmail("");
     } catch (error: any) {
-      Alert.alert("Could not update email", error?.message ?? "Please try again.");
+      Alert.alert(
+        "Could not update email",
+        error?.message ?? "Please try again.",
+      );
     }
   }
 
@@ -220,7 +223,10 @@ export default function SettingsScreen() {
       typeof nextValue === "boolean" ? nextValue : showInSwipe;
 
     if (!userId || savingSwipeSetting) {
-      Alert.alert("Sign in needed", "You must be signed in to update this setting.");
+      Alert.alert(
+        "Sign in needed",
+        "You must be signed in to update this setting.",
+      );
       return;
     }
 
@@ -238,13 +244,13 @@ export default function SettingsScreen() {
         "Saved",
         valueToSave
           ? "Your profile can appear in Swipe."
-          : "Your profile will be hidden from Swipe."
+          : "Your profile will be hidden from Swipe.",
       );
     } catch (error: any) {
       Alert.alert(
         "Could not save",
         error?.message ??
-          "Make sure the profiles table has a show_in_swipe column."
+          "Make sure the profiles table has a show_in_swipe column.",
       );
     } finally {
       setSavingSwipeSetting(false);
@@ -262,7 +268,7 @@ export default function SettingsScreen() {
   function openVerificationReview() {
     Alert.alert(
       "Verification Review",
-      "The paid Gold Verification page is ready. Next we will connect the actual ID/photo review flow after the verification product is added in RevenueCat or Google Play."
+      "The paid Gold Verification page is ready. Next we will connect the actual ID/photo review flow after the verification product is added in RevenueCat or Google Play.",
     );
   }
 
@@ -394,8 +400,8 @@ export default function SettingsScreen() {
               <Text style={styles.switchTitle}>Show me in Swipe</Text>
               <Text style={styles.switchSubtitle}>
                 Turn this off if you want to use PolyOpen for social, community,
-                spirituality, content, and live features without appearing in the
-                Swipe cycle.
+                spirituality, content, and live features without appearing in
+                the Swipe cycle.
               </Text>
             </View>
             <Switch
@@ -409,7 +415,9 @@ export default function SettingsScreen() {
 
           <View style={styles.noticeBox}>
             <Text style={styles.noticeTitle}>
-              {showInSwipe ? "Swipe visibility is on" : "Swipe visibility is off"}
+              {showInSwipe
+                ? "Swipe visibility is on"
+                : "Swipe visibility is off"}
             </Text>
             <Text style={styles.noticeText}>
               {showInSwipe
@@ -468,7 +476,7 @@ export default function SettingsScreen() {
           <Pressable
             onPress={() =>
               saveLocalPreference(
-                `Distance preference set to ${distanceMiles || "50"} miles.`
+                `Distance preference set to ${distanceMiles || "50"} miles.`,
               )
             }
             style={styles.primaryButton}
@@ -510,7 +518,9 @@ export default function SettingsScreen() {
 
           <Pressable
             onPress={() =>
-              saveLocalPreference(`Age preference saved from ${minAge} to ${maxAge}.`)
+              saveLocalPreference(
+                `Age preference saved from ${minAge} to ${maxAge}.`,
+              )
             }
             style={styles.primaryButton}
           >
@@ -626,25 +636,33 @@ export default function SettingsScreen() {
           <Text style={styles.goldSub}>/ month</Text>
 
           <Text style={styles.goldText}>
-            Verification gives members a stronger trust signal. The goal is simple:
-            show people your account is connected to a real person and give your
-            profile a gold verified badge.
+            Verification gives members a stronger trust signal. The goal is
+            simple: show people your account is connected to a real person and
+            give your profile a gold verified badge.
           </Text>
 
           <View style={styles.goldFeature}>
-            <Text style={styles.goldFeatureText}>★ Gold verified badge on profile</Text>
+            <Text style={styles.goldFeatureText}>
+              ★ Gold verified badge on profile
+            </Text>
           </View>
 
           <View style={styles.goldFeature}>
-            <Text style={styles.goldFeatureText}>★ Real-account trust signal</Text>
+            <Text style={styles.goldFeatureText}>
+              ★ Real-account trust signal
+            </Text>
           </View>
 
           <View style={styles.goldFeature}>
-            <Text style={styles.goldFeatureText}>★ Better credibility in community</Text>
+            <Text style={styles.goldFeatureText}>
+              ★ Better credibility in community
+            </Text>
           </View>
 
           <View style={styles.goldFeature}>
-            <Text style={styles.goldFeatureText}>★ Future ID or selfie review flow</Text>
+            <Text style={styles.goldFeatureText}>
+              ★ Future ID or selfie review flow
+            </Text>
           </View>
 
           <View style={styles.statusBox}>
@@ -655,13 +673,19 @@ export default function SettingsScreen() {
             <Text style={styles.goldButtonText}>Pay for Gold Verification</Text>
           </Pressable>
 
-          <Pressable onPress={openVerificationReview} style={styles.goldSecondaryButton}>
-            <Text style={styles.goldSecondaryButtonText}>Start Review Setup</Text>
+          <Pressable
+            onPress={openVerificationReview}
+            style={styles.goldSecondaryButton}
+          >
+            <Text style={styles.goldSecondaryButtonText}>
+              Start Review Setup
+            </Text>
           </Pressable>
 
           <Text style={styles.goldFinePrint}>
-            Payment opens the Premium store for now. The final ID or selfie review
-            flow still needs the verification product and review backend connected.
+            Payment opens the Premium store for now. The final ID or selfie
+            review flow still needs the verification product and review backend
+            connected.
           </Text>
         </View>
       </>
@@ -761,17 +785,20 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <Text style={styles.tipTitle}>Meet safely</Text>
           <Text style={styles.bodyText}>
-            Meet in public first, tell someone where you are going, and trust your instincts.
+            Meet in public first, tell someone where you are going, and trust
+            your instincts.
           </Text>
 
           <Text style={styles.tipTitle}>Protect your privacy</Text>
           <Text style={styles.bodyText}>
-            Do not share your address, financial information, passwords, or private documents.
+            Do not share your address, financial information, passwords, or
+            private documents.
           </Text>
 
           <Text style={styles.tipTitle}>Use boundaries</Text>
           <Text style={styles.bodyText}>
-            PolyOpen is built around ethical love, open spirituality, consent, honesty, and respect.
+            PolyOpen is built around ethical love, open spirituality, consent,
+            honesty, and respect.
           </Text>
         </View>
       </>
@@ -783,18 +810,20 @@ export default function SettingsScreen() {
       <>
         <PanelHeader
           title="Terms of Use"
-          subtitle="Current in-app terms placeholder."
+          subtitle="Terms governing your use of PolyOpen."
           onBack={() => setPanel("home")}
         />
 
         <View style={styles.card}>
           <Text style={styles.largeText}>PolyOpen Terms</Text>
           <Text style={styles.bodyText}>
-            By using PolyOpen, users agree to behave respectfully, avoid harassment,
-            follow consent-based community rules, and use the app legally.
+            By using PolyOpen, users agree to behave respectfully, avoid
+            harassment, follow consent-based community rules, and use the app
+            legally.
           </Text>
           <Text style={styles.bodyText}>
-            Full legal terms can be connected here before launch.
+            Review the complete Terms of Use, including account, safety,
+            community, subscription, VIP, and billing rules.
           </Text>
 
           <Pressable
@@ -813,7 +842,7 @@ export default function SettingsScreen() {
       <>
         <PanelHeader
           title="Privacy Policy"
-          subtitle="Current in-app privacy policy placeholder."
+          subtitle="How PolyOpen collects, uses, and protects information."
           onBack={() => setPanel("home")}
         />
 
@@ -824,7 +853,8 @@ export default function SettingsScreen() {
             profiles, discovery, safety, messaging, and app features.
           </Text>
           <Text style={styles.bodyText}>
-            Full privacy policy text can be connected here before launch.
+            Review the complete Privacy Policy, including data, permissions,
+            live communication, advertising, billing, and privacy rights.
           </Text>
 
           <Pressable
