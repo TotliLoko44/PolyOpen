@@ -202,7 +202,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     const eventRow = {
       event_id: eventId,
       event_type: event.type,
-      user_id: userId,
+      user_id: event.type === "TEST" ? null : userId,
       app_user_id: appUserId || null,
       original_app_user_id: originalAppUserId,
       product_id: event.product_id ?? null,
