@@ -80,6 +80,10 @@
     },
     "updates": {
       "url": "https://u.expo.dev/6b03c71c-a3d7-440a-80cb-13e17259f092"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
     }
   }
 }
