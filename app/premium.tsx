@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -34,6 +35,7 @@ import { supabase } from "../lib/supabase";
 const POLYOPEN_LOGO = require("../assets/images/polyopen-logo.png");
 
 const REVENUECAT_ANDROID_API_KEY = "goog_qLXBqJTqwffxkyvdNbNmKfGiGOj";
+const REVENUECAT_WEB_PURCHASE_URL = "https://pay.rev.cat/vakxvrhferkhpjtg";
 const OFFERING_ID = "default";
 
 const PREMIUM_PACKAGE_ID = "monthly";
@@ -410,12 +412,27 @@ export default function PremiumScreen() {
       return;
     }
 
-    const targetPackage =
-      plan === "premium"
-        ? premiumPackage
-        : plan === "no_ads"
-          ? noAdsPackage
-          : bundlePackage;
+    if (plan === "bundle") {
+      try {
+        setPlanBusy(plan);
+
+        const checkoutUrl = `${REVENUECAT_WEB_PURCHASE_URL}/${encodeURIComponent(userId)}`;
+
+        await Linking.openURL(checkoutUrl);
+      } catch (error: any) {
+        console.log("WEB CHECKOUT ERROR:", error);
+        Alert.alert(
+          "Checkout Error",
+          error?.message ?? "Could not open the secure PolyOpen checkout.",
+        );
+      } finally {
+        setPlanBusy(null);
+      }
+
+      return;
+    }
+
+    const targetPackage = plan === "premium" ? premiumPackage : noAdsPackage;
 
     if (!targetPackage) {
       Alert.alert(
@@ -434,11 +451,9 @@ export default function PremiumScreen() {
 
       Alert.alert(
         "Purchase Complete",
-        plan === "bundle"
-          ? "Premium + No Ads + Gold Verification is now active. You can claim 1 Premium boost each week."
-          : plan === "premium"
-            ? "Premium is now active. You can claim 1 Premium boost each week."
-            : "No Ads is now active.",
+        plan === "premium"
+          ? "Premium is now active. You can claim 1 Premium boost each week."
+          : "No Ads is now active.",
       );
     } catch (error: any) {
       if (error?.userCancelled) return;
@@ -883,10 +898,10 @@ export default function PremiumScreen() {
 
           <Pressable
             onPress={() => purchasePlan("bundle")}
-            disabled={!!planBusy || vipActive || !bundlePackage}
+            disabled={!!planBusy || vipActive || bundleActive}
             style={[
               styles.bundleButton,
-              planBusy || vipActive || !bundlePackage
+              planBusy || vipActive || bundleActive
                 ? styles.buttonDisabled
                 : null,
             ]}
